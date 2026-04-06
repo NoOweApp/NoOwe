@@ -1,0 +1,18 @@
+{
+  "first_name": "Owen",
+  "last_name": "Ungaro",
+  "payment_methods": [
+    {
+      "service": "venmo",
+      "user": "username"
+    },
+    {
+      "service": "paypal",
+      "user": "username"
+    },
+    {
+      "service": "cashapp",
+      "user": "username"
+    }
+  ]
+}

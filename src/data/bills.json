@@ -1,0 +1,30 @@
+[
+{
+    "receipt_id": "D8F72EFHR375D",
+    "receipt_date": "2026-02-26",
+    "receipt_items": [
+        {
+        "item_name": "hot dog",
+        "item_cost": 14.99,
+        "owner": "201-456-7897"
+        },
+        {
+        "item_name": "water",
+        "item_cost": 2.99,
+        "owner": "201-456-7897"
+        },
+        {
+        "item_name": "hot dog",
+        "item_cost": 14.99,
+        "owner": "201-384-9875"
+        },
+        {
+        "item_name": "burger",
+        "item_cost": 23.99,
+        "owner": "201-123-9843"
+        }
+    ],
+    "Tax": 0.0,
+    "tip": 0.0
+    }
+]
