@@ -1,10 +1,10 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import Home from '../components/Home';
 
 export default function HomeScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>NoOwe</Text>
-      <Text>App is running</Text>
+      <Home />
     </View>
   );
 }
