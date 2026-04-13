@@ -118,13 +118,13 @@ export default function Dashboard() {
         Create Bill
       </Button>
 
-      // Logic that happens when setting button is pressed
-      //Currently filler logic, but we would reroute to the settings page
+      {/*Logic that happens when setting button is pressed*/}
+      {/*Currently filler logic, but we would reroute to the settings page*/}
       <Button mode="outlined" onPress={() => console.log("Settings pressed")}>
         Settings
       </Button>
 
-      // Create bill modal button logic (manual or OCR scan)
+      {/*Create bill modal button logic (manual or OCR scan)*/}
       <Modal
         visible={createBillModalVisible}
         transparent
@@ -198,7 +198,7 @@ export default function Dashboard() {
               borderRadius: 8,
             }}
           >
-            // Bill detail logic for when you open up a bill in bill history
+            {/*Bill detail logic for when you open up a bill in bill history*/}
             {selectedBill && (
               <>
                 <Text style={{ fontSize: 20, marginBottom: 12 }}>

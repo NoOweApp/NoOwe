@@ -1,9 +1,16 @@
 import { validateLogin } from "@/validation/helpers";
+import { Directory, File, Paths } from 'expo-file-system';
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { View } from "react-native";
-import { Button, Checkbox, HelperText, Menu, Text, TextInput } from "react-native-paper";
-import { useRouter } from "expo-router";
-
+import {
+  Button,
+  Checkbox,
+  HelperText,
+  Menu,
+  Text,
+  TextInput,
+} from "react-native-paper";
 
 const payment_options = ["Venmo", "PayPal", "Zelle", "Cash App"]; //all the payment methods we have
 
@@ -69,6 +76,26 @@ export default function HomeLogin() {
 
       //file routing system GOES HERE
 
+
+      const nooweFolderPath = new Directory(Paths.document, 'NoOwe');
+      nooweFolderPath.delete()
+      if (!nooweFolderPath.exists) {
+        nooweFolderPath.create();
+        console.log("Folder created"); //To ensure that it was made. 
+      }
+
+      console.log("Folder check complete"); //to ensure that the check was made
+ 
+      const settingsJson = new File(nooweFolderPath, 'settings.json');
+      settingsJson.create();
+      console.log(settingsJson.uri) //TESTING
+      settingsJson.write(JSON.stringify(profile));
+
+      console.log("Write complete")
+
+      // TEMPORARY DELETE
+      // settingsJson.move(nooweFolderPath); //moving it under
+      // console.log(settingsJson.uri);
 
       //after json is created, go to dashboard
       router.push("/dashboard");
@@ -151,7 +178,7 @@ export default function HomeLogin() {
         </View>
       ))}
 
-        {error && (
+      {error && (
         <HelperText type="error" visible={!!error} style={{ marginBottom: 8 }}>
           {error}
         </HelperText>
