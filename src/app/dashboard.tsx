@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import {
-    Modal,
-    Pressable,
-    ScrollView,
-    TouchableOpacity,
-    View,
+  Modal,
+  Pressable,
+  ScrollView,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { Button, Text } from "react-native-paper";
 
