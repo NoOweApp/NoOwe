@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Modal,
@@ -23,6 +24,7 @@ type Bill = {
 };
 
 export default function Dashboard() {
+  const router = useRouter();
   const theme = useTheme();
 
   const [createBillModalVisible, setCreateBillModalVisible] = useState(false);
@@ -130,7 +132,7 @@ export default function Dashboard() {
         Create Bill
       </Button>
 
-      <Button mode="outlined" onPress={() => console.log("Settings pressed")}>
+      <Button mode="outlined" onPress={() => router.push("/settings")}>
         Settings
       </Button>
 
