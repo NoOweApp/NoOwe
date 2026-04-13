@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Button, Text } from "react-native-paper";
+import { Button, Text, useTheme } from "react-native-paper";
 
 // declaring types
 type BillPerson = {
@@ -23,10 +23,11 @@ type Bill = {
 };
 
 export default function Dashboard() {
+  const theme = useTheme();
+
   const [createBillModalVisible, setCreateBillModalVisible] = useState(false);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
 
-  // hard coded bills, will update later
   let bills: Bill[] = [
     {
       id: "1",
@@ -65,26 +66,33 @@ export default function Dashboard() {
         flex: 1,
         padding: 20,
         paddingTop: 40,
+        backgroundColor: theme.colors.background,
       }}
     >
-      <Text style={{ fontSize: 28, marginBottom: 20 }}>Dashboard</Text>
+      <Text style={{ fontSize: 28, marginBottom: 20, color: theme.colors.onBackground }}>
+        Dashboard
+      </Text>
 
-      <Text style={{ fontSize: 20, marginBottom: 10 }}>All Bills</Text>
+      <Text style={{ fontSize: 20, marginBottom: 10, color: theme.colors.onBackground }}>
+        All Bills
+      </Text>
 
-      <View // PAST BILLS LOGIC
+      <View
         style={{
           borderWidth: 1,
-          borderColor: "#ccc",
+          borderColor: theme.colors.outline,
           padding: 10,
           height: 300,
           marginBottom: 20,
         }}
       >
-        {bills.length === 0 ? ( // If no past bills, will render quip
+        {bills.length === 0 ? (
           <View
             style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
           >
-            <Text>Time to start picking up some checks!</Text>
+            <Text style={{ color: theme.colors.onSurface }}>
+              Time to start picking up some checks!
+            </Text>
           </View>
         ) : (
           <ScrollView>
@@ -94,14 +102,18 @@ export default function Dashboard() {
                 onPress={() => openBillModal(bill)}
                 style={{
                   borderWidth: 1,
-                  borderColor: "#aaa",
+                  borderColor: theme.colors.outlineVariant,
                   padding: 12,
                   marginBottom: 10,
                 }}
               >
-                <Text>Date Uploaded: {bill.dateUploaded}</Text>
-                <Text>Description: {bill.description}</Text>
-                <Text>
+                <Text style={{ color: theme.colors.onSurface }}>
+                  Date Uploaded: {bill.dateUploaded}
+                </Text>
+                <Text style={{ color: theme.colors.onSurface }}>
+                  Description: {bill.description}
+                </Text>
+                <Text style={{ color: theme.colors.onSurface }}>
                   Total Amount Paid: ${bill.totalAmountPaid.toFixed(2)}
                 </Text>
               </TouchableOpacity>
@@ -110,7 +122,7 @@ export default function Dashboard() {
         )}
       </View>
 
-      <Button //When create bill button is pressed it opens up the modal 
+      <Button
         mode="contained"
         onPress={() => setCreateBillModalVisible(true)}
         style={{ marginBottom: 10 }}
@@ -118,13 +130,10 @@ export default function Dashboard() {
         Create Bill
       </Button>
 
-      {/*Logic that happens when setting button is pressed*/}
-      {/*Currently filler logic, but we would reroute to the settings page*/}
       <Button mode="outlined" onPress={() => console.log("Settings pressed")}>
         Settings
       </Button>
 
-      {/*Create bill modal button logic (manual or OCR scan)*/}
       <Modal
         visible={createBillModalVisible}
         transparent
@@ -144,12 +153,14 @@ export default function Dashboard() {
             onPress={() => {}}
             style={{
               width: "80%",
-              backgroundColor: "white",
+              backgroundColor: theme.colors.surface,
               padding: 20,
               borderRadius: 8,
             }}
           >
-            <Text style={{ fontSize: 20, marginBottom: 20 }}>Create Bill</Text>
+            <Text style={{ fontSize: 20, marginBottom: 20, color: theme.colors.onSurface }}>
+              Create Bill
+            </Text>
 
             <Button
               mode="contained"
@@ -193,34 +204,41 @@ export default function Dashboard() {
             onPress={() => {}}
             style={{
               width: "85%",
-              backgroundColor: "white",
+              backgroundColor: theme.colors.surface,
               padding: 20,
               borderRadius: 8,
             }}
           >
-            {/*Bill detail logic for when you open up a bill in bill history*/}
             {selectedBill && (
               <>
-                <Text style={{ fontSize: 20, marginBottom: 12 }}>
+                <Text style={{ fontSize: 20, marginBottom: 12, color: theme.colors.onSurface }}>
                   Bill Details
                 </Text>
-                <Text>Date Uploaded: {selectedBill.dateUploaded}</Text>
-                <Text>Description: {selectedBill.description}</Text>
-                <Text>
+                <Text style={{ color: theme.colors.onSurface }}>
+                  Date Uploaded: {selectedBill.dateUploaded}
+                </Text>
+                <Text style={{ color: theme.colors.onSurface }}>
+                  Description: {selectedBill.description}
+                </Text>
+                <Text style={{ color: theme.colors.onSurface }}>
                   Total Amount Paid: ${selectedBill.totalAmountPaid.toFixed(2)}
                 </Text>
-                <Text>
+                <Text style={{ color: theme.colors.onSurface }}>
                   Number of People Involved: {selectedBill.people.length}
                 </Text>
 
-                <Text style={{ marginTop: 12, marginBottom: 8 }}>
+                <Text style={{ marginTop: 12, marginBottom: 8, color: theme.colors.onSurface }}>
                   Specific People Involved:
                 </Text>
 
                 {selectedBill.people.map((person, index) => (
                   <View key={index} style={{ marginBottom: 6 }}>
-                    <Text>Name: {person.name ? person.name : "N/A"}</Text>
-                    <Text>Phone Number: {person.phone}</Text>
+                    <Text style={{ color: theme.colors.onSurface }}>
+                      Name: {person.name ? person.name : "N/A"}
+                    </Text>
+                    <Text style={{ color: theme.colors.onSurface }}>
+                      Phone Number: {person.phone}
+                    </Text>
                   </View>
                 ))}
 

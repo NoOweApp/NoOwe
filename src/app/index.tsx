@@ -10,12 +10,14 @@ import {
   Menu,
   Text,
   TextInput,
+  useTheme,
 } from "react-native-paper";
 
 const payment_options = ["Venmo", "PayPal", "Zelle", "Cash App"]; //all the payment methods we have
 
 export default function HomeLogin() {
   const router = useRouter(); //router to navigate btwn pages
+  const theme = useTheme();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -108,13 +110,20 @@ export default function HomeLogin() {
 
   //rendered UI components
   return (
-    <View style={{ flex: 1, justifyContent: "center", padding: 20 }}>
+    <View
+      style={{
+        flex: 1,
+        justifyContent: "center",
+        padding: 20,
+        backgroundColor: theme.colors.background,
+      }}
+    >
       <Text
         style={{
           fontSize: 28,
           textAlign: "center",
           marginBottom: 20,
-          color: "black",
+          color: theme.colors.onBackground,
         }}
       >
         Welcome to NoOwe!
