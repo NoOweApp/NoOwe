@@ -1,8 +1,11 @@
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { View } from "react-native";
-import { Text, TextInput, Button, Menu } from "react-native-paper";
+import { Button, Menu, Text, TextInput } from "react-native-paper";
 
 export default function HomeLogin() {
+  const router = useRouter();
+  
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
 
@@ -23,6 +26,8 @@ export default function HomeLogin() {
       lastName,
       paymentMethod,
     });
+
+    router.push("/dashboard");
   };
 
   return (
