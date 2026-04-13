@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Button, Text } from "react-native-paper";
 
+// declaring types
 type BillPerson = {
   name: string | null;
   phone: string;
@@ -70,7 +71,7 @@ export default function Dashboard() {
 
       <Text style={{ fontSize: 20, marginBottom: 10 }}>All Bills</Text>
 
-      <View
+      <View // PAST BILLS LOGIC
         style={{
           borderWidth: 1,
           borderColor: "#ccc",
@@ -79,7 +80,7 @@ export default function Dashboard() {
           marginBottom: 20,
         }}
       >
-        {bills.length === 0 ? (
+        {bills.length === 0 ? ( // If no past bills, will render quip
           <View
             style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
           >
@@ -109,7 +110,7 @@ export default function Dashboard() {
         )}
       </View>
 
-      <Button
+      <Button //When create bill button is pressed it opens up the modal 
         mode="contained"
         onPress={() => setCreateBillModalVisible(true)}
         style={{ marginBottom: 10 }}
@@ -117,10 +118,13 @@ export default function Dashboard() {
         Create Bill
       </Button>
 
+      // Logic that happens when setting button is pressed
+      //Currently filler logic, but we would reroute to the settings page
       <Button mode="outlined" onPress={() => console.log("Settings pressed")}>
         Settings
       </Button>
 
+      // Create bill modal button logic (manual or OCR scan)
       <Modal
         visible={createBillModalVisible}
         transparent
@@ -194,6 +198,7 @@ export default function Dashboard() {
               borderRadius: 8,
             }}
           >
+            // Bill detail logic for when you open up a bill in bill history
             {selectedBill && (
               <>
                 <Text style={{ fontSize: 20, marginBottom: 12 }}>
