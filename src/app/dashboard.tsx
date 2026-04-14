@@ -34,7 +34,7 @@ export default function Dashboard() {
     {
       id: "1",
       dateUploaded: "2026-04-10",
-      description: "Dinner at Turning Point With the Big Kirk",
+      description: "Dinner",
       totalAmountPaid: 64.82,
       people: [
         { name: "Owen", phone: "201-555-1111" },
