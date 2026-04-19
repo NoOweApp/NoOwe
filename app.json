@@ -37,6 +37,12 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow $(PRODUCT_NAME) to access your contacts."
+        }
       ]
     ],
     "experiments": {
