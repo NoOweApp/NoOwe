@@ -166,7 +166,10 @@ export default function Dashboard() {
 
             <Button
               mode="contained"
-              onPress={() => console.log("Scan Bill pressed")}
+              onPress={() => { 
+                setCreateBillModalVisible(false)
+                return router.push("/scan")
+              }}
               style={{ marginBottom: 10 }}
             >
               Scan Bill
