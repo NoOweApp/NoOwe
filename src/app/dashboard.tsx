@@ -71,11 +71,23 @@ export default function Dashboard() {
         backgroundColor: theme.colors.background,
       }}
     >
-      <Text style={{ fontSize: 28, marginBottom: 20, color: theme.colors.onBackground }}>
+      <Text
+        style={{
+          fontSize: 28,
+          marginBottom: 20,
+          color: theme.colors.onBackground,
+        }}
+      >
         Dashboard
       </Text>
 
-      <Text style={{ fontSize: 20, marginBottom: 10, color: theme.colors.onBackground }}>
+      <Text
+        style={{
+          fontSize: 20,
+          marginBottom: 10,
+          color: theme.colors.onBackground,
+        }}
+      >
         All Bills
       </Text>
 
@@ -160,7 +172,13 @@ export default function Dashboard() {
               borderRadius: 8,
             }}
           >
-            <Text style={{ fontSize: 20, marginBottom: 20, color: theme.colors.onSurface }}>
+            <Text
+              style={{
+                fontSize: 20,
+                marginBottom: 20,
+                color: theme.colors.onSurface,
+              }}
+            >
               Create Bill
             </Text>
 
@@ -174,7 +192,7 @@ export default function Dashboard() {
 
             <Button
               mode="contained"
-              onPress={() => console.log("Enter Bill Manually pressed")}
+              onPress={() => router.push("/manual")}
               style={{ marginBottom: 10 }}
             >
               Enter Bill Manually
@@ -213,7 +231,13 @@ export default function Dashboard() {
           >
             {selectedBill && (
               <>
-                <Text style={{ fontSize: 20, marginBottom: 12, color: theme.colors.onSurface }}>
+                <Text
+                  style={{
+                    fontSize: 20,
+                    marginBottom: 12,
+                    color: theme.colors.onSurface,
+                  }}
+                >
                   Bill Details
                 </Text>
                 <Text style={{ color: theme.colors.onSurface }}>
@@ -229,7 +253,13 @@ export default function Dashboard() {
                   Number of People Involved: {selectedBill.people.length}
                 </Text>
 
-                <Text style={{ marginTop: 12, marginBottom: 8, color: theme.colors.onSurface }}>
+                <Text
+                  style={{
+                    marginTop: 12,
+                    marginBottom: 8,
+                    color: theme.colors.onSurface,
+                  }}
+                >
                   Specific People Involved:
                 </Text>
 
