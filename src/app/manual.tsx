@@ -16,7 +16,7 @@ type Person = {
 type Item = {
     name: string;
     cost: number;
-    assignees: Person[];
+    owners: Person[];
 }
 
 export default function Manual() {
@@ -66,7 +66,7 @@ export default function Manual() {
         const newItem: Item = {
             name: itemName.trim(),
             cost: cost,
-            assignees: selectedPeople
+            owners: selectedPeople
         };
 
         setItems((prev) => [...prev, newItem]);
@@ -89,14 +89,90 @@ export default function Manual() {
         }
     }
 
-    const submitGreyedOut = itemName.trim().length < 2 || itemName.trim().length > 50 || itemCost.trim() === "";
-
+    const submitItemGreyedOut = itemName.trim().length < 2 || itemName.trim().length > 50 || itemCost.trim() === "";
+    const submitBillGreyedOut = people.length < 2 || items.length === 0 || items.some(item => item.owners.length === 0) || people.some(person => !items.some(item => item.owners.includes(person)));
 
     return (
-        <View>
-            <Text>Manual Bill Entry</Text>
+        <View
+            style={{
+                flex: 1,
+                padding: 20,
+                paddingTop: 40,
+                backgroundColor: theme.colors.background,
+            }}
+        >
+            <Text
+                style={{
+                    fontSize: 28,
+                    marginBottom: 20,
+                    color: theme.colors.onBackground
+                }}
+            >
+                Manual Bill Entry
+            </Text>
+            <Text
+                style={{
+                    fontSize: 20,
+                    marginBottom: 10,
+                    color: theme.colors.onBackground
+                }}
+            >
+                Items Added
+            </Text>
+            <View
+                style={{
+                    borderWidth: 1,
+                    borderColor: theme.colors.outline,
+                    padding: 10,
+                    height: 300,
+                    marginBottom: 20
+                }}
+            >
+                {items.length === 0 ? (
+                    <View style={{
+                        flex: 1,
+                        justifyContent: "center",
+                        alignItems: "center"
+                    }}>
+                        <Text>No items added yet.</Text>
+                    </View>
+                ) : (
+                    <ScrollView>
+                        {items.map((item, index) => (
+                            <View
+                                key={index}
+                                style={{
+                                    borderWidth: 1,
+                                    borderColor: theme.colors.outlineVariant,
+                                    padding: 12,
+                                    marginBottom: 10
+                                }}
+                            >
+                                <Text>{item.name}</Text>
+                                <Text>${item.cost.toFixed(2)}</Text>
+                                <Text>
+                                    Assigned: {item.owners.map(p => p.name).join(", ")}
+                                </Text>
+                            </View>
+                        ))}
+                    </ScrollView>
+                )}
+            </View>
             <Button onPress={() => setPeopleModalVisible(true)}>Open People</Button>
-            <Button onPress={() => setItemModalVisible(true)}>Open Items</Button>
+            <Button
+                mode="contained"
+                onPress={() => setItemModalVisible(true)}
+                style={{ marginBottom: 10 }}
+            >
+                Add Item
+            </Button>
+            <Button
+                mode="contained"
+                disabled={submitBillGreyedOut}
+                onPress={() => Alert.alert("Bill Submitted")}
+            >
+                Submit Bill
+            </Button>
             <Modal visible={peopleModalVisible}>
                 <View>
                     {view === "main" && (
@@ -183,7 +259,7 @@ export default function Manual() {
 
                     <Button
                         onPress={AddItem}
-                        disabled={submitGreyedOut}
+                        disabled={submitItemGreyedOut}
                     >
                         Submit
                     </Button>
