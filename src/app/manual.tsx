@@ -1,10 +1,17 @@
 import * as Contacts from "expo-contacts";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { FlatList, Modal, Pressable, ScrollView, View } from "react-native";
+import {
+  FlatList,
+  Modal,
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+} from "react-native";
 import { Button, Searchbar, Text, useTheme } from "react-native-paper";
 
-// declaring types
+/* declaring types */
 type Person = {
   name: string | null;
   phone: string;
@@ -25,7 +32,7 @@ export default function Manual() {
   const [people, setPeople] = useState<Person[]>([]);
   const [items, setItems] = useState<Item[]>([]);
 
-  // Contact import state
+  /* Contact import state */
   const [contacts, setContacts] = useState<Contacts.Contact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contacts.Contact[]>(
     [],
@@ -34,7 +41,19 @@ export default function Manual() {
   const [contactsLoading, setContactsLoading] = useState(false);
   const [contactsError, setContactsError] = useState<string | null>(null);
 
-  const addPersonManual = () => {};
+  /* manual entry vars */
+  const [manualName, setManualName] = useState("");
+  const [manualPhone, setManualPhone] = useState("");
+
+  const addPersonManual = () => {
+    if (!manualPhone.trim()) return; /* phone is required */
+    setPeople((prev) => [
+      ...prev,
+      { name: manualName.trim() || null, phone: manualPhone.trim() },
+    ]);
+    setManualName(""); /* clear inputs for next entry */
+    setManualPhone("");
+  };
 
   const addPersonAuto = () => {};
 
@@ -71,6 +90,7 @@ export default function Manual() {
     }
   };
 
+  /* all contacts are added to and stored here */
   const importContact = (contact: Contacts.Contact) => {
     const phone = contact.phoneNumbers?.[0]?.number ?? "";
     setPeople((prev) => [...prev, { name: contact.name ?? null, phone }]);
@@ -191,7 +211,7 @@ export default function Manual() {
               borderRadius: 8,
             }}
           >
-            {/* MAIN VIEW */}
+            {/* main */}
             {view === "main" && (
               <>
                 <Text
@@ -231,7 +251,7 @@ export default function Manual() {
               </>
             )}
 
-            {/* MANUAL VIEW */}
+            {/* Manual Entry */}
             {view === "manual" && (
               <>
                 <Text
@@ -243,21 +263,46 @@ export default function Manual() {
                 >
                   Manual Entry
                 </Text>
+                <TextInput
+                  placeholder="Name (optional)"
+                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  value={manualName}
+                  onChangeText={setManualName}
+                  style={{
+                    color: theme.colors.onSurface,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.colors.outline,
+                    marginBottom: 12,
+                    padding: 4,
+                  }}
+                />
+                <TextInput
+                  placeholder="Phone number"
+                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  value={manualPhone}
+                  onChangeText={setManualPhone}
+                  keyboardType="phone-pad"
+                  style={{
+                    color: theme.colors.onSurface,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.colors.outline,
+                    marginBottom: 16,
+                    padding: 4,
+                  }}
+                />
                 <Button
                   mode="contained"
-                  onPress={() => {
-                    addPersonManual();
-                    setView("main");
-                  }}
+                  disabled={!manualPhone.trim()}
+                  onPress={addPersonManual} /*you can keep adding */
                   style={{ marginBottom: 10 }}
                 >
                   Add Person
                 </Button>
-                <Button onPress={() => setView("main")}>Back</Button>
+                <Button onPress={() => setView("main")}>Done</Button>
               </>
             )}
 
-            {/* AUTO / CONTACTS VIEW */}
+            {/* Automatic Import */}
             {view === "auto" && (
               <>
                 <Text
@@ -289,8 +334,7 @@ export default function Manual() {
                       onChangeText={handleContactSearch}
                       style={{ marginBottom: 10 }}
                     />
-
-                    {/* Selected contacts summary */}
+                    {/* section displaying contacts that we have selected */}
                     {people.length > 0 && (
                       <View
                         style={{
@@ -319,7 +363,7 @@ export default function Manual() {
                         ))}
                       </View>
                     )}
-
+                    {/* this is the list of contacts */}
                     <FlatList
                       data={filteredContacts}
                       keyExtractor={(item, index) =>
