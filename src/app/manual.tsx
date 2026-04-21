@@ -1,12 +1,12 @@
 import * as Contacts from "expo-contacts";
-import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    Modal,
-    Pressable,
-    ScrollView,
-    View
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  View
 } from "react-native";
 
 import { Button, HelperText, Text, TextInput, useTheme } from "react-native-paper";
@@ -25,12 +25,33 @@ type Item = {
 export default function Manual() {
     const router = useRouter();
     const theme = useTheme();
+    const { temp_bill } = useLocalSearchParams();
 
     type PeopleModalView = "main" | "manual" | "auto";
     const [peopleModalVisible, setPeopleModalVisible] = useState(false);
     const [view, setView] = useState<PeopleModalView>("main");
     const [people, setPeople] = useState<Person[]>([]);
     const [items, setItems] = useState<Item[]>([]);
+
+    // Load items from temp_bill param if present (coming from scan)
+    useEffect(() => {
+        if (typeof temp_bill === 'string' && temp_bill.trim() !== "") {
+            try {
+                const bill = JSON.parse(temp_bill);
+                if (bill && Array.isArray(bill.receipt_items)) {
+                    setItems(
+                        bill.receipt_items.map((item: any) => ({
+                            name: item.item_name,
+                            cost: item.item_cost,
+                            owners: [],
+                        }))
+                    );
+                }
+            } catch (e) {
+                // ignore parse errors
+            }
+        }
+    }, [temp_bill]);
 
     /* Contact import state */
     const [contacts, setContacts] = useState<Contacts.Contact[]>([]);
