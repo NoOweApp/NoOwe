@@ -195,7 +195,10 @@ export default function Dashboard() {
 
             <Button
               mode="contained"
-              onPress={() => router.push("/manual")}
+              onPress={() => {
+                setCreateBillModalVisible(false)
+                router.push("/manual")
+              }}
               style={{ marginBottom: 10 }}
             >
               Enter Bill Manually
