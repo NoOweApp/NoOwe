@@ -8,7 +8,6 @@ function parseBill(imgList) {
 
     // example bill
     return {
-        receipt_id: "D8F72EFHR375D",
         receipt_date: "2026-02-26",
         receipt_items: [
             {
