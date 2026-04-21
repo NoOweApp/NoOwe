@@ -2,11 +2,11 @@ import * as Contacts from "expo-contacts";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  View
+    Alert,
+    Modal,
+    Pressable,
+    ScrollView,
+    View
 } from "react-native";
 
 import { Button, HelperText, Text, TextInput, useTheme } from "react-native-paper";
@@ -32,6 +32,8 @@ export default function Manual() {
     const [view, setView] = useState<PeopleModalView>("main");
     const [people, setPeople] = useState<Person[]>([]);
     const [items, setItems] = useState<Item[]>([]);
+    const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+
 
     // Load items from temp_bill param if present (coming from scan)
     useEffect(() => {
@@ -151,21 +153,60 @@ export default function Manual() {
             return;
         }
 
-        const newItem: Item = {
+        const updatedItem: Item = {
             name: itemName.trim(),
-            cost: cost,
-            owners: selectedPeople
+            cost,
+            owners: selectedPeople,
         };
 
-        setItems((prev) => [...prev, newItem]);
-
-        Alert.alert("Success", "Item Added");
+        if (editingItemIndex !== null) {
+            setItems((prev) =>
+                prev.map((item, i) =>
+                    i === editingItemIndex ? updatedItem : item
+                )
+            );
+            Alert.alert("Success", "Item Updated");
+        } else {
+            setItems((prev) => [...prev, updatedItem]);
+            Alert.alert("Success", "Item Added");
+        }
 
         setItemName("");
         setItemCost("");
         setSelectedPeople([]);
+        setEditingItemIndex(null);
         setItemModalVisible(false);
     }
+
+    const removeItem = (index: number) => {
+        setItems((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const editItem = (index: number) => {
+        const item = items[index];
+
+        setItemName(item.name);
+        setItemCost(item.cost.toString());
+        setSelectedPeople(item.owners);
+        setEditingItemIndex(index);
+        setItemModalVisible(true);
+    };
+
+    const submitBill = () => {
+        const bill = {
+            id: Date.now().toString(),
+            dateUploaded: new Date().toISOString().split("T")[0],
+            description: "Manual Bill",
+            totalAmountPaid: items.reduce((sum, item) => sum + item.cost, 0),
+            people,
+            items,
+        };
+
+        console.log(JSON.stringify(bill, null, 2));
+        Alert.alert("Bill JSON Created");
+
+        router.push("/dashboard");
+    };
 
     const toggleSelectPerson = (person: Person) => {
         if (selectedPeople.includes(person)) {
@@ -185,341 +226,357 @@ export default function Manual() {
         <View
             style={{
                 flex: 1,
-                padding: 20,
-                paddingTop: 40,
                 backgroundColor: theme.colors.background,
             }}
         >
-            {/* TITLE */}
-            <Text style={{ fontSize: 28, marginBottom: 20, color: theme.colors.onBackground }}>
-                Manual Bill Entry
-            </Text>
+            <ScrollView
+                contentContainerStyle={{
+                    padding: 20,
+                    paddingTop: 40,
+                    paddingBottom: 60,
+                }}
+            >
+                {/* TITLE */}
+                <Text style={{ fontSize: 28, marginBottom: 20, color: theme.colors.onBackground }}>
+                    Manual Bill Entry
+                </Text>
 
-            {/* PEOPLE SUMMARY */}
-            {people.length > 0 && (
+                {/* PEOPLE SUMMARY */}
+                {people.length > 0 && (
+                    <View
+                        style={{
+                            borderWidth: 1,
+                            borderColor: theme.colors.outline,
+                            padding: 10,
+                            marginBottom: 20,
+                        }}
+                    >
+                        <Text style={{ marginBottom: 8 }}>
+                            People Added ({people.length})
+                        </Text>
+
+                        <ScrollView>
+                            {people.map((p, index) => (
+                                <View
+                                    key={index}
+                                    style={{
+                                        borderWidth: 1,
+                                        borderColor: theme.colors.outlineVariant,
+                                        padding: 10,
+                                        marginBottom: 6,
+                                    }}
+                                >
+                                    <Text>
+                                        {index + 1}. {p.name ?? "N/A"}
+                                    </Text>
+                                    <Text>{p.phone}</Text>
+
+                                    <Button onPress={() => removeContact(index)}>
+                                        Remove
+                                    </Button>
+                                </View>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
+
+                {/* ITEMS LIST */}
+                <Text style={{ fontSize: 20, marginBottom: 10 }}>
+                    Items Added
+                </Text>
+
                 <View
                     style={{
                         borderWidth: 1,
                         borderColor: theme.colors.outline,
                         padding: 10,
+                        height: 300,
                         marginBottom: 20,
                     }}
                 >
-                    <Text style={{ marginBottom: 8 }}>
-                        People Added ({people.length})
-                    </Text>
-
-                    <ScrollView>
-                        {people.map((p, index) => (
-                            <View
-                                key={index}
-                                style={{
-                                    borderWidth: 1,
-                                    borderColor: theme.colors.outlineVariant,
-                                    padding: 10,
-                                    marginBottom: 6,
-                                }}
-                            >
-                                <Text>
-                                    {index + 1}. {p.name ?? "N/A"}
-                                </Text>
-                                <Text>{p.phone}</Text>
-
-                                <Button onPress={() => removeContact(index)}>
-                                    Remove
-                                </Button>
-                            </View>
-                        ))}
-                    </ScrollView>
+                    {items.length === 0 ? (
+                        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+                            <Text>No items added yet.</Text>
+                        </View>
+                    ) : (
+                        <ScrollView>
+                            {items.map((item, index) => (
+                                <Pressable
+                                    key={index}
+                                    onPress={() => editItem(index)}
+                                    style={{
+                                        borderWidth: 1,
+                                        borderColor: theme.colors.outlineVariant,
+                                        padding: 12,
+                                        marginBottom: 10,
+                                    }}
+                                >
+                                    <Text>{item.name}</Text>
+                                    <Text>${item.cost.toFixed(2)}</Text>
+                                    <Text>
+                                        Assigned: {item.owners.map(p => p.name).join(", ")}
+                                    </Text>
+                                    <Button onPress={() => removeItem(index)}>
+                                        Remove Item
+                                    </Button>
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                    )}
                 </View>
-            )}
 
-            {/* ITEMS LIST */}
-            <Text style={{ fontSize: 20, marginBottom: 10 }}>
-                Items Added
-            </Text>
+                {/* ACTION BUTTONS */}
+                <Button onPress={() => setPeopleModalVisible(true)}>
+                    Open People
+                </Button>
 
-            <View
-                style={{
-                    borderWidth: 1,
-                    borderColor: theme.colors.outline,
-                    padding: 10,
-                    height: 300,
-                    marginBottom: 20,
-                }}
-            >
-                {items.length === 0 ? (
-                    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-                        <Text>No items added yet.</Text>
-                    </View>
-                ) : (
-                    <ScrollView>
-                        {items.map((item, index) => (
-                            <View
-                                key={index}
-                                style={{
-                                    borderWidth: 1,
-                                    borderColor: theme.colors.outlineVariant,
-                                    padding: 12,
-                                    marginBottom: 10,
-                                }}
-                            >
-                                <Text>{item.name}</Text>
-                                <Text>${item.cost.toFixed(2)}</Text>
-                                <Text>
-                                    Assigned: {item.owners.map(p => p.name).join(", ")}
-                                </Text>
-                            </View>
-                        ))}
-                    </ScrollView>
-                )}
-            </View>
-
-            {/* ACTION BUTTONS */}
-            <Button onPress={() => setPeopleModalVisible(true)}>
-                Open People
-            </Button>
-
-            <Button
-                mode="contained"
-                onPress={() => setItemModalVisible(true)}
-                style={{ marginBottom: 10 }}
-            >
-                Add Item
-            </Button>
-
-            <Button
-                mode="contained"
-                disabled={submitBillGreyedOut}
-                onPress={() => Alert.alert("Bill Submitted")}
-            >
-                Submit Bill
-            </Button>
-
-            {/* ITEM MODAL */}
-            <Modal
-                visible={itemModalVisible}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setItemModalVisible(false)}
-            >
-                <Pressable
-                    onPress={() => setItemModalVisible(false)}
-                    style={{
-                        flex: 1,
-                        justifyContent: "center",
-                        alignItems: "center",
-                        backgroundColor: "rgba(0,0,0,0.3)",
+                <Button
+                    mode="contained"
+                    onPress={() => {
+                        setEditingItemIndex(null);
+                        setItemName("");
+                        setItemCost("");
+                        setSelectedPeople([]);
+                        setItemModalVisible(true);
                     }}
+                    style={{ marginBottom: 10 }}
+                >
+                    Add Item
+                </Button>
+
+                <Button
+                    mode="contained"
+                    disabled={submitBillGreyedOut}
+                    onPress={submitBill}
+                >
+                    Submit Bill
+                </Button>
+
+                {/* ITEM MODAL */}
+                <Modal
+                    visible={itemModalVisible}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setItemModalVisible(false)}
                 >
                     <Pressable
-                        onPress={() => { }}
+                        onPress={() => setItemModalVisible(false)}
                         style={{
-                            width: "85%",
-                            maxHeight: "85%",
-                            backgroundColor: theme.colors.surface,
-                            padding: 20,
-                            borderRadius: 8,
+                            flex: 1,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            backgroundColor: "rgba(0,0,0,0.3)",
                         }}
                     >
-                        {/* HEADER */}
-                        <Text
+                        <Pressable
+                            onPress={() => { }}
                             style={{
-                                fontSize: 20,
-                                marginBottom: 16,
-                                color: theme.colors.onSurface,
+                                width: "85%",
+                                maxHeight: "85%",
+                                backgroundColor: theme.colors.surface,
+                                padding: 20,
+                                borderRadius: 8,
                             }}
                         >
-                            Add Item
-                        </Text>
-
-                        {/* ITEM NAME */}
-                        <TextInput
-                            label="Item Name"
-                            value={itemName}
-                            onChangeText={setItemName}
-                            style={{ marginBottom: 12 }}
-                        />
-
-                        {/* ITEM COST */}
-                        <TextInput
-                            label="Item Cost"
-                            value={itemCost}
-                            onChangeText={setItemCost}
-                            keyboardType="decimal-pad"
-                            style={{ marginBottom: 16 }}
-                        />
-
-                        {/* ASSIGNEES SECTION HEADER */}
-                        <Text
-                            style={{
-                                fontSize: 16,
-                                marginBottom: 8,
-                                color: theme.colors.onSurface,
-                            }}
-                        >
-                            Assign People
-                        </Text>
-
-                        {/* SELECTED PEOPLE SUMMARY (like auto-import selected contacts) */}
-                        {selectedPeople.length > 0 && (
-                            <View
+                            {/* HEADER */}
+                            <Text
                                 style={{
-                                    borderWidth: 1,
-                                    borderColor: theme.colors.outlineVariant,
-                                    padding: 8,
-                                    marginBottom: 10,
-                                    borderRadius: 4,
+                                    fontSize: 20,
+                                    marginBottom: 16,
+                                    color: theme.colors.onSurface,
                                 }}
                             >
-                                <Text style={{ marginBottom: 4 }}>
-                                    Selected ({selectedPeople.length})
-                                </Text>
+                                Add Item
+                            </Text>
 
-                                {selectedPeople.map((p, i) => (
-                                    <Text key={i}>
-                                        • {p.name ?? "N/A"} — {p.phone}
+                            {/* ITEM NAME */}
+                            <TextInput
+                                label="Item Name"
+                                value={itemName}
+                                onChangeText={setItemName}
+                                style={{ marginBottom: 12 }}
+                            />
+
+                            {/* ITEM COST */}
+                            <TextInput
+                                label="Item Cost"
+                                value={itemCost}
+                                onChangeText={setItemCost}
+                                keyboardType="decimal-pad"
+                                style={{ marginBottom: 16 }}
+                            />
+
+                            {/* ASSIGNEES SECTION HEADER */}
+                            <Text
+                                style={{
+                                    fontSize: 16,
+                                    marginBottom: 8,
+                                    color: theme.colors.onSurface,
+                                }}
+                            >
+                                Assign People
+                            </Text>
+
+                            {/* SELECTED PEOPLE SUMMARY (like auto-import selected contacts) */}
+                            {selectedPeople.length > 0 && (
+                                <View
+                                    style={{
+                                        borderWidth: 1,
+                                        borderColor: theme.colors.outlineVariant,
+                                        padding: 8,
+                                        marginBottom: 10,
+                                        borderRadius: 4,
+                                    }}
+                                >
+                                    <Text style={{ marginBottom: 4 }}>
+                                        Selected ({selectedPeople.length})
                                     </Text>
-                                ))}
-                            </View>
-                        )}
 
-                        {/* PEOPLE LIST (same style as contacts list in people modal) */}
-                        <ScrollView style={{ maxHeight: 220 }}>
-                            {people.map((person, index) => {
-                                const isSelected = selectedPeople.includes(person);
-
-                                return (
-                                    <Pressable
-                                        key={index}
-                                        onPress={() => toggleSelectPerson(person)}
-                                        style={{
-                                            borderWidth: 1,
-                                            borderColor: isSelected
-                                                ? theme.colors.primary
-                                                : theme.colors.outlineVariant,
-                                            backgroundColor: isSelected
-                                                ? theme.colors.primaryContainer
-                                                : "transparent",
-                                            padding: 12,
-                                            marginBottom: 6,
-                                            borderRadius: 4,
-                                        }}
-                                    >
-                                        <Text style={{ color: theme.colors.onSurface }}>
-                                            {index + 1}. {person.name ?? "No Name"}
+                                    {selectedPeople.map((p, i) => (
+                                        <Text key={i}>
+                                            • {p.name ?? "N/A"} — {p.phone}
                                         </Text>
-                                        <Text
+                                    ))}
+                                </View>
+                            )}
+
+                            {/* PEOPLE LIST (same style as contacts list in people modal) */}
+                            <ScrollView style={{ maxHeight: 220 }}>
+                                {people.map((person, index) => {
+                                    const isSelected = selectedPeople.includes(person);
+
+                                    return (
+                                        <Pressable
+                                            key={index}
+                                            onPress={() => toggleSelectPerson(person)}
                                             style={{
-                                                color: theme.colors.onSurface,
-                                                opacity: 0.6,
+                                                borderWidth: 1,
+                                                borderColor: isSelected
+                                                    ? theme.colors.primary
+                                                    : theme.colors.outlineVariant,
+                                                backgroundColor: isSelected
+                                                    ? theme.colors.primaryContainer
+                                                    : "transparent",
+                                                padding: 12,
+                                                marginBottom: 6,
+                                                borderRadius: 4,
                                             }}
                                         >
-                                            {person.phone}
-                                        </Text>
-                                    </Pressable>
-                                );
-                            })}
-                        </ScrollView>
+                                            <Text style={{ color: theme.colors.onSurface }}>
+                                                {index + 1}. {person.name ?? "No Name"}
+                                            </Text>
+                                            <Text
+                                                style={{
+                                                    color: theme.colors.onSurface,
+                                                    opacity: 0.6,
+                                                }}
+                                            >
+                                                {person.phone}
+                                            </Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </ScrollView>
 
-                        {/* ERROR */}
-                        {itemError !== "" && (
-                            <HelperText type="error" visible>
-                                {itemError}
-                            </HelperText>
-                        )}
+                            {/* ERROR */}
+                            {itemError !== "" && (
+                                <HelperText type="error" visible>
+                                    {itemError}
+                                </HelperText>
+                            )}
 
-                        {/* ACTION BUTTONS */}
-                        <Button
-                            mode="contained"
-                            onPress={AddItem}
-                            disabled={submitItemGreyedOut}
-                            style={{ marginTop: 12, marginBottom: 8 }}
-                        >
-                            Add Item
-                        </Button>
+                            {/* ACTION BUTTONS */}
+                            <Button
+                                mode="contained"
+                                onPress={AddItem}
+                                disabled={submitItemGreyedOut}
+                                style={{ marginTop: 12, marginBottom: 8 }}
+                            >
+                                {editingItemIndex !== null ? "Save Changes" : "Add Item"}
+                            </Button>
 
-                        <Button onPress={() => setItemModalVisible(false)}>
-                            Close
-                        </Button>
+                            <Button onPress={() => setItemModalVisible(false)}>
+                                Close
+                            </Button>
+                        </Pressable>
                     </Pressable>
-                </Pressable>
-            </Modal>
+                </Modal>
 
-            {/* PEOPLE MODAL */}
-            <Modal
-                visible={peopleModalVisible}
-                transparent
-                animationType="fade"
-            >
-                <Pressable
-                    onPress={() => setPeopleModalVisible(false)}
-                    style={{
-                        flex: 1,
-                        justifyContent: "center",
-                        alignItems: "center",
-                        backgroundColor: "rgba(0,0,0,0.3)",
-                    }}
+                {/* PEOPLE MODAL */}
+                <Modal
+                    visible={peopleModalVisible}
+                    transparent
+                    animationType="fade"
                 >
                     <Pressable
+                        onPress={() => setPeopleModalVisible(false)}
                         style={{
-                            width: "85%",
-                            backgroundColor: theme.colors.surface,
-                            padding: 20,
-                            borderRadius: 8,
+                            flex: 1,
+                            justifyContent: "center",
+                            alignItems: "center",
+                            backgroundColor: "rgba(0,0,0,0.3)",
                         }}
                     >
-                        <Text>Add People</Text>
+                        <Pressable
+                            style={{
+                                width: "85%",
+                                backgroundColor: theme.colors.surface,
+                                padding: 20,
+                                borderRadius: 8,
+                            }}
+                        >
+                            <Text>Add People</Text>
 
-                        {view === "main" && (
-                            <>
-                                <Button onPress={() => setView("manual")}>
-                                    Manual
-                                </Button>
-                                <Button onPress={() => setView("auto")}>
-                                    Contacts
-                                </Button>
-                            </>
-                        )}
+                            {view === "main" && (
+                                <>
+                                    <Button onPress={() => setView("manual")}>
+                                        Manual
+                                    </Button>
+                                    <Button onPress={() => setView("auto")}>
+                                        Contacts
+                                    </Button>
+                                </>
+                            )}
 
-                        {view === "manual" && (
-                            <>
-                                <TextInput
-                                    value={manualName}
-                                    onChangeText={setManualName}
-                                    placeholder="Name"
-                                />
-                                <TextInput
-                                    value={manualPhone}
-                                    onChangeText={setManualPhone}
-                                    placeholder="Phone"
-                                />
+                            {view === "manual" && (
+                                <>
+                                    <TextInput
+                                        value={manualName}
+                                        onChangeText={setManualName}
+                                        placeholder="Name"
+                                    />
+                                    <TextInput
+                                        value={manualPhone}
+                                        onChangeText={setManualPhone}
+                                        placeholder="Phone"
+                                    />
 
-                                <Button
-                                    disabled={!manualPhone.trim()}
-                                    onPress={addPersonManual}
-                                >
-                                    Add
-                                </Button>
+                                    <Button
+                                        disabled={!manualPhone.trim()}
+                                        onPress={addPersonManual}
+                                    >
+                                        Add
+                                    </Button>
 
-                                <Button onPress={() => setView("main")}>
-                                    Back
-                                </Button>
-                            </>
-                        )}
+                                    <Button onPress={() => setView("main")}>
+                                        Back
+                                    </Button>
+                                </>
+                            )}
 
-                        {view === "auto" && (
-                            <>
-                                <Text>Contacts Mode</Text>
-                                <Button onPress={loadContacts}>Load</Button>
-                                <Button onPress={() => setView("main")}>
-                                    Back
-                                </Button>
-                            </>
-                        )}
+                            {view === "auto" && (
+                                <>
+                                    <Text>Contacts Mode</Text>
+                                    <Button onPress={loadContacts}>Load</Button>
+                                    <Button onPress={() => setView("main")}>
+                                        Back
+                                    </Button>
+                                </>
+                            )}
+                        </Pressable>
                     </Pressable>
-                </Pressable>
-            </Modal>
+                </Modal>
+            </ScrollView>
         </View>
     );
 }
