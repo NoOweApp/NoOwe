@@ -2,27 +2,25 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
-import { Image, Modal, View } from "react-native";
-import { Button, Text, useTheme } from "react-native-paper";
+import { Image, Modal, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Button, Icon, IconButton, Text, useTheme } from "react-native-paper";
 
-// OCR Implementation
 import { parseBill } from "../utils/billParser";
 
 export default function Scan() {
     const router = useRouter();
     const theme = useTheme();
+    const insets = useSafeAreaInsets();
 
     const [permission, requestPermission] = useCameraPermissions();
-
     const cameraRef = useRef<CameraView>(null);
 
     const [photoTaken, setPhotoTaken] = useState<boolean>(false);
-    const [imgList, setImgList] = useState<{ uri: string; width: number; height: number; }[]>([]);
-    const [capturedPhoto, setCapturedPhoto] = useState<{ uri: string; width: number; height: number; } | null>(null);
-
+    const [imgList, setImgList] = useState<{ uri: string; width: number; height: number }[]>([]);
+    const [capturedPhoto, setCapturedPhoto] = useState<{ uri: string; width: number; height: number } | null>(null);
     const [previewModalVisible, setPreviewModalVisible] = useState<boolean>(false);
 
-    // Check camera permissions page
     if (!permission || !permission.granted) {
         return (
             <View
@@ -30,201 +28,319 @@ export default function Scan() {
                     flex: 1,
                     justifyContent: "center",
                     alignItems: "center",
-                    padding: 20,
+                    padding: 32,
                     backgroundColor: theme.colors.background,
                 }}
             >
-                <Text style={{ marginBottom: 20, color: theme.colors.onBackground }}>
-                    Please give NoOwe permission to use your camera for this feature
+                <Icon source="camera-outline" color={theme.colors.onBackground} size={64} />
+                <Text
+                    variant="titleLarge"
+                    style={{ color: theme.colors.onBackground, fontWeight: "700", textAlign: "center", marginBottom: 8 }}
+                >
+                    Camera Access Needed
                 </Text>
-
-                <Button mode="contained" onPress={requestPermission}>
+                <Text
+                    variant="bodyMedium"
+                    style={{ color: theme.colors.onSurfaceVariant, textAlign: "center", marginBottom: 32 }}
+                >
+                    NoOwe needs your camera to scan receipts.
+                </Text>
+                <Button
+                    mode="contained"
+                    onPress={requestPermission}
+                    contentStyle={{ paddingHorizontal: 16, paddingVertical: 4 }}
+                >
                     Grant Permission
+                </Button>
+                <Button
+                    mode="outlined"
+                    onPress={() => router.push("/dashboard")}
+                    style={{ marginTop: 12 }}
+                >
+                    Go Back
                 </Button>
             </View>
         );
     }
 
-    // Take Picture
     const takePicture = async () => {
-        // Get permission before entering
-        // const permission = await ImagePicker.useCameraPermissions();
-        // if (!permission.granted) {
-        //     console.log("Permission to access camera roll denied");
-        //     return;
-        // }
-
         if (!cameraRef.current) return;
-
         const photo = await cameraRef.current.takePictureAsync();
         if (!photo) return;
-
         setCapturedPhoto(photo);
         setPreviewModalVisible(true);
     };
 
-    // Choose from Camera Roll
     const pickFromCameraRoll = async () => {
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-        if (!permission.granted) {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) {
             console.log("Permission to access camera roll denied");
             return;
         }
-
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ["images"],
             allowsEditing: false,
             quality: 1,
         });
-
         if (!result.canceled) {
             const asset = result.assets[0];
-
-            const selectedPhoto = {
-                uri: asset.uri,
-                width: asset.width,
-                height: asset.height,
-            };
-
-            setCapturedPhoto(selectedPhoto);
+            setCapturedPhoto({ uri: asset.uri, width: asset.width, height: asset.height });
             setPreviewModalVisible(true);
         }
     };
 
-    // Keep/Remove Actions
     const handleRemovePhoto = () => {
         setCapturedPhoto(null);
         setPreviewModalVisible(false);
     };
+
     const handleKeepPhoto = () => {
         if (!capturedPhoto) return;
-
-        setImgList((curPhotos) => [...curPhotos, capturedPhoto]);
-
+        setImgList((cur) => [...cur, capturedPhoto]);
         setPhotoTaken(true);
-
-        setTimeout(() => {
-            setPhotoTaken(false);
-        }, 2000);
-
+        setTimeout(() => setPhotoTaken(false), 2000);
         setCapturedPhoto(null);
         setPreviewModalVisible(false);
     };
 
-    // Send pictures to OCR
     const handleParseBill = () => {
         if (imgList.length === 0) {
             console.log("No saved images captured yet");
             return;
         }
-
         const scanned_bill = parseBill(imgList);
-
-        router.push({
-            pathname: "/manual",
-            params: {
-                temp_bill: JSON.stringify(scanned_bill),
-            },
-        });
+        router.push({ pathname: "/manual", params: { temp_bill: JSON.stringify(scanned_bill) } });
     };
 
     return (
         <View style={{ flex: 1 }}>
+            {/* Camera fills screen */}
             <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" />
 
-            {/* Temporary back button (for testing) */}
-            <Button
-                mode="text"
-                onPress={() => router.push("/dashboard")}
-                style={{
-                    position: "absolute",
-                    top: 50,
-                    left: 10,
-                    zIndex: 10,
-                    backgroundColor: "rgba(0,0,0,0.5)",
-                }}
-                textColor="white"
-            >
-                Back
-            </Button>
-
-            {/* Actions */}
+            {/* Darkened top bar */}
             <View
                 style={{
                     position: "absolute",
-                    bottom: 40,
-                    left: 20,
-                    right: 20,
-                    gap: 12,
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: insets.top + 64,
+                    backgroundColor: "rgba(0,0,0,0.55)",
+                    flexDirection: "row",
+                    alignItems: "flex-end",
+                    paddingHorizontal: 8,
+                    paddingBottom: 10,
                 }}
             >
-
-                {/* Photo Saved Text */}
-                {photoTaken && (
-                    <Text
+                <IconButton
+                    icon="arrow-left"
+                    iconColor="white"
+                    size={22}
+                    onPress={() => router.push("/dashboard")}
+                />
+                <View style={{ flex: 1 }} />
+                {imgList.length > 0 && (
+                    <View
                         style={{
-                            textAlign: "center",
-                            color: "white",
-                            backgroundColor: "rgba(0,0,0,0.6)",
-                            padding: 8,
-                            borderRadius: 8,
+                            backgroundColor: theme.colors.primary,
+                            borderRadius: 14,
+                            paddingHorizontal: 12,
+                            paddingVertical: 5,
+                            marginRight: 8,
                         }}
                     >
-                        Photo saved
-                    </Text>
+                        <Text variant="labelMedium" style={{ color: theme.colors.onPrimary, fontWeight: "700" }}>
+                            {imgList.length} photo{imgList.length !== 1 ? "s" : ""}
+                        </Text>
+                    </View>
                 )}
-
-                <Button mode="contained" onPress={takePicture}>
-                    Capture
-                </Button>
-
-                {/* Note: ask about UI */}
-                <Text style={{ textAlign: "center", color: "white" }}> or </Text>
-
-                <Button mode="contained" onPress={pickFromCameraRoll}>
-                    Choose From Camera Roll
-                </Button>
-
-                <Button mode="outlined" onPress={handleParseBill}>
-                    Parse Bill
-                </Button>
-
             </View>
 
-            {/* Keep/Remove Modal, add cropping? */}
+            {/* Viewfinder overlay with corner brackets */}
+            <View
+                style={{
+                    position: "absolute",
+                    top: insets.top + 80,
+                    left: "10%",
+                    right: "10%",
+                    height: "44%",
+                }}
+                pointerEvents="none"
+            >
+                {/* Top-left */}
+                <View style={{ position: "absolute", top: 0, left: 0, width: 32, height: 32, borderTopWidth: 3, borderLeftWidth: 3, borderColor: theme.colors.primary }} />
+                {/* Top-right */}
+                <View style={{ position: "absolute", top: 0, right: 0, width: 32, height: 32, borderTopWidth: 3, borderRightWidth: 3, borderColor: theme.colors.primary }} />
+                {/* Bottom-left */}
+                <View style={{ position: "absolute", bottom: 0, left: 0, width: 32, height: 32, borderBottomWidth: 3, borderLeftWidth: 3, borderColor: theme.colors.primary }} />
+                {/* Bottom-right */}
+                <View style={{ position: "absolute", bottom: 0, right: 0, width: 32, height: 32, borderBottomWidth: 3, borderRightWidth: 3, borderColor: theme.colors.primary }} />
+
+                {/* Instruction label */}
+                <View
+                    style={{
+                        position: "absolute",
+                        bottom: -36,
+                        alignSelf: "center",
+                        backgroundColor: "rgba(0,0,0,0.55)",
+                        borderRadius: 20,
+                        paddingHorizontal: 14,
+                        paddingVertical: 5,
+                    }}
+                >
+                    <Text variant="labelMedium" style={{ color: "white" }}>
+                        Point at a receipt
+                    </Text>
+                </View>
+            </View>
+
+            {/* Photo saved toast */}
+            {photoTaken && (
+                <View
+                    style={{
+                        position: "absolute",
+                        top: insets.top + 80,
+                        alignSelf: "center",
+                        backgroundColor: theme.colors.primaryContainer,
+                        borderRadius: 20,
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                    }}
+                >
+                    <Text variant="labelLarge" style={{ color: theme.colors.primary, fontWeight: "700" }}>
+                        ✓ Photo saved
+                    </Text>
+                </View>
+            )}
+
+            {/* Bottom action panel */}
+            <View
+                style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    backgroundColor: "rgba(13,13,13,0.9)",
+                    borderTopLeftRadius: 28,
+                    borderTopRightRadius: 28,
+                    paddingTop: 28,
+                    paddingBottom: insets.bottom + 24,
+                    paddingHorizontal: 28,
+                    alignItems: "center",
+                    gap: 16,
+                }}
+            >
+                {/* Capture button */}
+                <TouchableOpacity
+                    onPress={takePicture}
+                    style={{
+                        width: 76,
+                        height: 76,
+                        borderRadius: 38,
+                        backgroundColor: theme.colors.primary,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        shadowColor: theme.colors.primary,
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.6,
+                        shadowRadius: 16,
+                        elevation: 10,
+                    }}
+                >
+                    <View
+                        style={{
+                            width: 60,
+                            height: 60,
+                            borderRadius: 30,
+                            borderWidth: 3,
+                            borderColor: theme.colors.onPrimary,
+                            justifyContent: "center",
+                            alignItems: "center",
+                        }}
+                    >
+                        <IconButton icon="camera" iconColor={theme.colors.onPrimary} size={26} />
+                    </View>
+                </TouchableOpacity>
+
+                {/* "or" divider */}
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10, width: "100%" }}>
+                    <View style={{ flex: 1, height: 1, backgroundColor: theme.colors.outline }} />
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>or</Text>
+                    <View style={{ flex: 1, height: 1, backgroundColor: theme.colors.outline }} />
+                </View>
+
+                <Button
+                    mode="contained-tonal"
+                    onPress={pickFromCameraRoll}
+                    style={{ width: "100%" }}
+                >
+                    Choose from Camera Roll
+                </Button>
+
+                <Button
+                    mode="outlined"
+                    onPress={handleParseBill}
+                    disabled={imgList.length === 0}
+                    style={{ width: "100%" }}
+                >
+                    {imgList.length > 0 ? `Parse Bill (${imgList.length} photo${imgList.length !== 1 ? "s" : ""})` : "Parse Bill"}
+                </Button>
+            </View>
+
+            {/* Preview modal */}
             <Modal visible={previewModalVisible && !!capturedPhoto} animationType="slide">
                 <View
                     style={{
                         flex: 1,
-                        backgroundColor: "black",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        padding: 20,
+                        backgroundColor: "#0d0d0d",
+                        paddingTop: insets.top + 16,
+                        paddingBottom: insets.bottom + 20,
+                        paddingHorizontal: 20,
                     }}
                 >
+                    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 20 }}>
+                        <Text
+                            variant="titleLarge"
+                            style={{ color: "white", fontWeight: "700", flex: 1 }}
+                        >
+                            Preview
+                        </Text>
+                        <IconButton
+                            icon="close"
+                            iconColor="white"
+                            size={22}
+                            onPress={handleRemovePhoto}
+                        />
+                    </View>
+
                     {capturedPhoto && (
                         <Image
                             source={{ uri: capturedPhoto.uri }}
                             style={{
-                                width: "100%",
-                                height: "75%",
+                                flex: 1,
+                                borderRadius: 16,
                                 resizeMode: "contain",
-                                marginBottom: 20,
+                                marginBottom: 24,
                             }}
                         />
                     )}
 
-                    <View style={{ width: "100%", gap: 12 }}>
-                        <Button mode="contained" onPress={handleKeepPhoto}>
-                            Keep
+                    <View style={{ gap: 12 }}>
+                        <Button
+                            mode="contained"
+                            onPress={handleKeepPhoto}
+                            contentStyle={{ paddingVertical: 4 }}
+                        >
+                            Use This Photo
                         </Button>
-
-                        <Button mode="outlined" onPress={handleRemovePhoto}>
-                            Remove
+                        <Button
+                            mode="outlined"
+                            textColor={theme.colors.error}
+                            onPress={handleRemovePhoto}
+                        >
+                            Discard
                         </Button>
                     </View>
-                    
                 </View>
             </Modal>
         </View>
