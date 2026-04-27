@@ -1,18 +1,26 @@
-import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import { BottomSheet } from "@/src/components/BottomSheet";
+import { Directory, File, Paths } from "expo-file-system";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
-  Modal,
+  Image,
   Pressable,
   ScrollView,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { Button, Text, useTheme } from "react-native-paper";
+import { Button, Divider, FAB, Icon, IconButton, Text, useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// declaring types
-type BillPerson = {
+type Person = {
   name: string | null;
   phone: string;
+  imageUri?: string;
+};
+
+type BillItem = {
+  name: string;
+  cost: number;
+  owners: Person[];
 };
 
 type Bill = {
@@ -20,252 +28,500 @@ type Bill = {
   dateUploaded: string;
   description: string;
   totalAmountPaid: number;
-  people: BillPerson[];
+  people: Person[];
+  items?: BillItem[];
 };
+
+function PersonAvatar({
+  imageUri,
+  name,
+  size,
+  bgColor,
+  textColor,
+}: {
+  imageUri?: string;
+  name: string | null;
+  size: number;
+  bgColor: string;
+  textColor: string;
+}) {
+  const [imgFailed, setImgFailed] = React.useState(false);
+  const initial = name ? name[0].toUpperCase() : "?";
+  const fontSize = Math.round(size * 0.38);
+  const showImage = !!imageUri && !imgFailed;
+
+  return (
+    <View style={{ width: size, height: size, justifyContent: "center", alignItems: "center", backgroundColor: bgColor }}>
+      {showImage ? (
+        <Image
+          source={{ uri: imageUri }}
+          style={{ width: size, height: size, position: "absolute", top: 0, left: 0 }}
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        <Text style={{ color: textColor, fontWeight: "700", fontSize }}>{initial}</Text>
+      )}
+    </View>
+  );
+}
 
 export default function Dashboard() {
   const router = useRouter();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [createBillModalVisible, setCreateBillModalVisible] = useState(false);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
+  const [bills, setBills] = useState<Bill[]>([]);
 
-  let bills: Bill[] = [
-    {
-      id: "1",
-      dateUploaded: "2026-04-10",
-      description: "Dinner",
-      totalAmountPaid: 64.82,
-      people: [
-        { name: "Owen", phone: "201-555-1111" },
-        { name: "Adi", phone: "201-555-2222" },
-        { name: null, phone: "201-555-3333" },
-      ],
-    },
-    {
-      id: "2",
-      dateUploaded: "2026-04-08",
-      description: "Bowling Night",
-      totalAmountPaid: 91.5,
-      people: [
-        { name: "Owen", phone: "201-555-1111" },
-        { name: "Jacob", phone: "201-555-4444" },
-      ],
-    },
-  ];
+  // Reload bills every time the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      const loadBills = async () => {
+        try {
+          const folder = new Directory(Paths.document, "NoOwe");
+          const billsFile = new File(folder, "bills.json");
+          if (billsFile.exists) {
+            const text = await billsFile.text();
+            const parsed: Bill[] = JSON.parse(text);
+            // Most recent first
+            setBills([...parsed].reverse());
+          } else {
+            setBills([]);
+          }
+        } catch {
+          setBills([]);
+        }
+      };
+      loadBills();
+    }, [])
+  );
 
-  const openBillModal = (bill: Bill) => {
-    setSelectedBill(bill);
-  };
-
-  const closeBillModal = () => {
-    setSelectedBill(null);
-  };
+  const totalAmount = bills.reduce((sum, b) => sum + b.totalAmountPaid, 0);
+  const openBillModal = (bill: Bill) => setSelectedBill(bill);
+  const closeBillModal = () => setSelectedBill(null);
 
   return (
-    <View
-      style={{
-        flex: 1,
-        padding: 20,
-        paddingTop: 40,
-        backgroundColor: theme.colors.background,
-      }}
-    >
-      <Text style={{ fontSize: 28, marginBottom: 20, color: theme.colors.onBackground }}>
-        Dashboard
-      </Text>
-
-      <Text style={{ fontSize: 20, marginBottom: 10, color: theme.colors.onBackground }}>
-        All Bills
-      </Text>
-
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      {/* Header */}
       <View
         style={{
-          borderWidth: 1,
-          borderColor: theme.colors.outline,
-          padding: 10,
-          height: 300,
-          marginBottom: 20,
+          paddingTop: insets.top + 12,
+          paddingHorizontal: 20,
+          paddingBottom: 12,
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
-        {bills.length === 0 ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View style={{ width: 32, height: 32, borderRadius: 8, overflow: "hidden" }}>
+            <Image
+              source={require("../assets/logo.png")}
+              style={{ width: 32, height: 32 }}
+              resizeMode="cover"
+            />
+          </View>
+          <Text variant="titleLarge" style={{ color: theme.colors.onBackground, fontWeight: "800" }}>
+            NoOwe
+          </Text>
+        </View>
+        <IconButton
+          icon="cog-outline"
+          size={22}
+          iconColor={theme.colors.onSurfaceVariant}
+          onPress={() => router.push("/settings")}
+        />
+      </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 110 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Summary card */}
+        {bills.length > 0 && (
           <View
-            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+            style={{
+              backgroundColor: theme.colors.primaryContainer,
+              borderRadius: 20,
+              padding: 22,
+              marginBottom: 28,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
           >
-            <Text style={{ color: theme.colors.onSurface }}>
-              Time to start picking up some checks!
+            <View>
+              <Text
+                variant="labelSmall"
+                style={{
+                  color: theme.colors.onPrimaryContainer,
+                  opacity: 0.65,
+                  textTransform: "uppercase",
+                  letterSpacing: 1.2,
+                  marginBottom: 4,
+                }}
+              >
+                Outstanding
+              </Text>
+              <Text
+                variant="headlineLarge"
+                style={{ color: "white", fontWeight: "800" }}
+              >
+                ${totalAmount.toFixed(2)}
+              </Text>
+              <Text
+                variant="bodySmall"
+                style={{ color: theme.colors.onPrimaryContainer, opacity: 0.75, marginTop: 2 }}
+              >
+                across {bills.length} bill{bills.length !== 1 ? "s" : ""}
+              </Text>
+            </View>
+            <View
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: "white",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Icon source="cash-multiple" color={theme.colors.primaryContainer} size={30} />
+            </View>
+          </View>
+        )}
+
+        {/* Section label */}
+        <Text
+          variant="labelSmall"
+          style={{
+            color: theme.colors.onSurfaceVariant,
+            textTransform: "uppercase",
+            letterSpacing: 1.2,
+            marginBottom: 14,
+          }}
+        >
+          Recent Bills
+        </Text>
+
+        {/* Empty state */}
+        {bills.length === 0 ? (
+          <View style={{ alignItems: "center", paddingVertical: 64 }}>
+            <Icon source="receipt-outline" color={theme.colors.onSurfaceVariant} size={52} />
+            <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+              No bills yet
+            </Text>
+            <Text
+              variant="bodyMedium"
+              style={{
+                color: theme.colors.onSurfaceVariant,
+                opacity: 0.55,
+                marginTop: 6,
+                textAlign: "center",
+              }}
+            >
+              Tap + to start picking up some checks!
             </Text>
           </View>
         ) : (
-          <ScrollView>
-            {bills.map((bill) => (
-              <TouchableOpacity
-                key={bill.id}
-                onPress={() => openBillModal(bill)}
+          bills.map((bill) => (
+            <Pressable
+              key={bill.id}
+              onPress={() => openBillModal(bill)}
+              style={{ marginBottom: 12 }}
+            >
+              <View
                 style={{
-                  borderWidth: 1,
-                  borderColor: theme.colors.outlineVariant,
-                  padding: 12,
-                  marginBottom: 10,
+                  backgroundColor: theme.colors.surface,
+                  borderRadius: 16,
+                  flexDirection: "row",
+                  overflow: "hidden",
                 }}
               >
-                <Text style={{ color: theme.colors.onSurface }}>
-                  Date Uploaded: {bill.dateUploaded}
-                </Text>
-                <Text style={{ color: theme.colors.onSurface }}>
-                  Description: {bill.description}
-                </Text>
-                <Text style={{ color: theme.colors.onSurface }}>
-                  Total Amount Paid: ${bill.totalAmountPaid.toFixed(2)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
-      </View>
-
-      <Button
-        mode="contained"
-        onPress={() => setCreateBillModalVisible(true)}
-        style={{ marginBottom: 10 }}
-      >
-        Create Bill
-      </Button>
-
-      <Button mode="outlined" onPress={() => router.push("/settings")}>
-        Settings
-      </Button>
-
-      <Modal
-        visible={createBillModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCreateBillModalVisible(false)}
-      >
-        <Pressable
-          onPress={() => setCreateBillModalVisible(false)}
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "rgba(0,0,0,0.3)",
-          }}
-        >
-          <Pressable
-            onPress={() => {}}
-            style={{
-              width: "80%",
-              backgroundColor: theme.colors.surface,
-              padding: 20,
-              borderRadius: 8,
-            }}
-          >
-            <Text style={{ fontSize: 20, marginBottom: 20, color: theme.colors.onSurface }}>
-              Create Bill
-            </Text>
-
-            <Button
-              mode="contained"
-              onPress={() => console.log("Scan Bill pressed")}
-              style={{ marginBottom: 10 }}
-            >
-              Scan Bill
-            </Button>
-
-            <Button
-              mode="contained"
-              onPress={() => console.log("Enter Bill Manually pressed")}
-              style={{ marginBottom: 10 }}
-            >
-              Enter Bill Manually
-            </Button>
-
-            <Button onPress={() => setCreateBillModalVisible(false)}>
-              Close
-            </Button>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <Modal
-        visible={selectedBill !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={closeBillModal}
-      >
-        <Pressable
-          onPress={closeBillModal}
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "rgba(0,0,0,0.3)",
-          }}
-        >
-          <Pressable
-            onPress={() => {}}
-            style={{
-              width: "85%",
-              backgroundColor: theme.colors.surface,
-              padding: 20,
-              borderRadius: 8,
-            }}
-          >
-            {selectedBill && (
-              <>
-                <Text style={{ fontSize: 20, marginBottom: 12, color: theme.colors.onSurface }}>
-                  Bill Details
-                </Text>
-                <Text style={{ color: theme.colors.onSurface }}>
-                  Date Uploaded: {selectedBill.dateUploaded}
-                </Text>
-                <Text style={{ color: theme.colors.onSurface }}>
-                  Description: {selectedBill.description}
-                </Text>
-                <Text style={{ color: theme.colors.onSurface }}>
-                  Total Amount Paid: ${selectedBill.totalAmountPaid.toFixed(2)}
-                </Text>
-                <Text style={{ color: theme.colors.onSurface }}>
-                  Number of People Involved: {selectedBill.people.length}
-                </Text>
-
-                <Text style={{ marginTop: 12, marginBottom: 8, color: theme.colors.onSurface }}>
-                  Specific People Involved:
-                </Text>
-
-                {selectedBill.people.map((person, index) => (
-                  <View key={index} style={{ marginBottom: 6 }}>
-                    <Text style={{ color: theme.colors.onSurface }}>
-                      Name: {person.name ? person.name : "N/A"}
+                {/* Accent stripe */}
+                <View style={{ width: 4, backgroundColor: theme.colors.primary }} />
+                <View style={{ flex: 1, paddingVertical: 16, paddingHorizontal: 16 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <Text
+                      variant="titleMedium"
+                      style={{ color: theme.colors.onSurface, fontWeight: "700", flex: 1, marginRight: 8 }}
+                    >
+                      {bill.description}
                     </Text>
-                    <Text style={{ color: theme.colors.onSurface }}>
-                      Phone Number: {person.phone}
+                    <Text
+                      variant="titleMedium"
+                      style={{ color: theme.colors.primary, fontWeight: "800" }}
+                    >
+                      ${bill.totalAmountPaid.toFixed(2)}
+                    </Text>
+                  </View>
+                  <Text
+                    variant="bodySmall"
+                    style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}
+                  >
+                    {bill.dateUploaded} · {bill.people.length}{" "}
+                    {bill.people.length === 1 ? "person" : "people"}
+                  </Text>
+                </View>
+              </View>
+            </Pressable>
+          ))
+        )}
+      </ScrollView>
+
+      {/* FAB */}
+      <FAB
+        icon="plus"
+        onPress={() => setCreateBillModalVisible(true)}
+        style={{ position: "absolute", bottom: insets.bottom + 24, right: 20 }}
+      />
+
+      {/* Create Bill — bottom sheet */}
+      <BottomSheet
+        visible={createBillModalVisible}
+        onClose={() => setCreateBillModalVisible(false)}
+      >
+        <View
+          style={{
+            backgroundColor: theme.colors.surface,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingTop: 12,
+            paddingHorizontal: 24,
+            paddingBottom: insets.bottom + 28,
+          }}
+        >
+          <View
+            style={{
+              width: 40,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: theme.colors.outlineVariant,
+              alignSelf: "center",
+              marginBottom: 22,
+            }}
+          />
+          <Text
+            variant="titleLarge"
+            style={{ color: theme.colors.onSurface, fontWeight: "700", marginBottom: 20 }}
+          >
+            New Bill
+          </Text>
+
+          <Pressable
+            onPress={() => {
+              setCreateBillModalVisible(false);
+              router.push("/scan");
+            }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: theme.colors.surfaceVariant,
+              borderRadius: 16,
+              padding: 18,
+              marginBottom: 12,
+            }}
+          >
+            <View
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 23,
+                backgroundColor: theme.colors.primaryContainer,
+                justifyContent: "center",
+                alignItems: "center",
+                marginRight: 16,
+              }}
+            >
+              <Icon source="camera-outline" color="white" size={24} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: "700" }}>
+                Scan Bill
+              </Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
+                Point your camera at a receipt
+              </Text>
+            </View>
+            <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 20 }}>›</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              setCreateBillModalVisible(false);
+              router.push("/manual");
+            }}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: theme.colors.surfaceVariant,
+              borderRadius: 16,
+              padding: 18,
+              marginBottom: 24,
+            }}
+          >
+            <View
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 23,
+                backgroundColor: theme.colors.primaryContainer,
+                justifyContent: "center",
+                alignItems: "center",
+                marginRight: 16,
+              }}
+            >
+              <Icon source="pencil-outline" color="white" size={24} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: "700" }}>
+                Enter Manually
+              </Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
+                Type in items and amounts yourself
+              </Text>
+            </View>
+            <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 20 }}>›</Text>
+          </Pressable>
+
+          <Button
+            onPress={() => setCreateBillModalVisible(false)}
+            textColor={theme.colors.onSurfaceVariant}
+          >
+            Cancel
+          </Button>
+        </View>
+      </BottomSheet>
+
+      {/* Bill Details — bottom sheet */}
+      <BottomSheet
+        visible={selectedBill !== null}
+        onClose={closeBillModal}
+      >
+        <View
+          style={{
+            backgroundColor: theme.colors.surface,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingTop: 12,
+            paddingHorizontal: 24,
+            paddingBottom: insets.bottom + 28,
+          }}
+        >
+          {selectedBill && (
+            <>
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: theme.colors.outlineVariant,
+                  alignSelf: "center",
+                  marginBottom: 22,
+                }}
+              />
+
+              {/* Title + amount */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  marginBottom: 4,
+                }}
+              >
+                <View style={{ flex: 1, marginRight: 12 }}>
+                  <Text
+                    variant="headlineSmall"
+                    style={{ color: theme.colors.onSurface, fontWeight: "700" }}
+                  >
+                    {selectedBill.description}
+                  </Text>
+                  <Text
+                    variant="bodySmall"
+                    style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}
+                  >
+                    {selectedBill.dateUploaded}
+                  </Text>
+                </View>
+                <Text
+                  variant="headlineMedium"
+                  style={{ color: theme.colors.primary, fontWeight: "800" }}
+                >
+                  ${selectedBill.totalAmountPaid.toFixed(2)}
+                </Text>
+              </View>
+
+              <Divider style={{ marginVertical: 18 }} />
+
+              <Text
+                variant="labelSmall"
+                style={{
+                  color: theme.colors.onSurfaceVariant,
+                  textTransform: "uppercase",
+                  letterSpacing: 1.2,
+                  marginBottom: 14,
+                }}
+              >
+                People ({selectedBill.people.length})
+              </Text>
+
+              {/* People avatar chips — now with images */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginBottom: 24 }}
+              >
+                {selectedBill.people.map((person, index) => (
+                  <View key={index} style={{ alignItems: "center", marginRight: 16 }}>
+                    <View
+                      style={{
+                        width: 46,
+                        height: 46,
+                        borderRadius: 23,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <PersonAvatar
+                        imageUri={person.imageUri}
+                        name={person.name}
+                        size={46}
+                        bgColor={theme.colors.primaryContainer}
+                        textColor={theme.colors.primary}
+                      />
+                    </View>
+                    <Text
+                      variant="labelSmall"
+                      style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}
+                      numberOfLines={1}
+                    >
+                      {person.name ?? "Unknown"}
                     </Text>
                   </View>
                 ))}
+              </ScrollView>
 
-                <Button
-                  mode="contained"
-                  onPress={() => console.log("Delete bill pressed")}
-                  style={{ marginTop: 12, marginBottom: 8 }}
-                >
-                  Delete Bill
-                </Button>
-
-                <Button
-                  mode="contained"
-                  onPress={() => console.log("Send reminder pressed")}
-                  style={{ marginBottom: 8 }}
-                >
-                  Send Reminder
-                </Button>
-
-                <Button onPress={closeBillModal}>Close</Button>
-              </>
-            )}
-          </Pressable>
-        </Pressable>
-      </Modal>
+              <Button
+                mode="contained"
+                onPress={() => console.log("Send reminder pressed")}
+                style={{ marginBottom: 10 }}
+                contentStyle={{ paddingVertical: 4 }}
+              >
+                Send Reminder
+              </Button>
+              <Button
+                mode="outlined"
+                textColor={theme.colors.error}
+                onPress={() => console.log("Delete bill pressed")}
+              >
+                Delete Bill
+              </Button>
+            </>
+          )}
+        </View>
+      </BottomSheet>
     </View>
   );
 }
