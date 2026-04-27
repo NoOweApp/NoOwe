@@ -1,19 +1,21 @@
+import { BottomSheet } from "@/src/components/BottomSheet";
+import * as helpers from "@/validation/helpers";
 import * as Contacts from "expo-contacts";
+import { Directory, File, Paths } from "expo-file-system";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import React, { useEffect, useState } from "react";
 import {
     Alert,
-    Image,
-    KeyboardAvoidingView,
+    Image, Keyboard, KeyboardAvoidingView,
     Modal,
     Platform,
     Pressable,
     ScrollView,
-    View,
+    View
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Divider, HelperText, Icon, IconButton, Text, TextInput, useTheme } from "react-native-paper";
-import { BottomSheet } from "@/src/components/BottomSheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Person = {
     name: string | null;
@@ -91,21 +93,78 @@ export default function Manual() {
         }
     }, [temp_bill]);
 
+    useEffect(() => {
+        const loadProfile = async () => {
+            try {
+                const nooweFolderPath = new Directory(Paths.document, "NoOwe");
+                const settingsJson = new File(nooweFolderPath, "settings.json");
+                if (settingsJson.exists) {
+                    const text = await settingsJson.text();
+                    const profile = JSON.parse(text);
+                    const firstName = profile.firstName ?? profile.first_name ?? "";
+                    if (firstName) {
+                        setPeople([{ name: firstName, phone: "" }]);
+                    }
+                }
+            } catch (e) {
+                // ignore
+            }
+        };
+        loadProfile();
+    }, []);
+
     const [contacts, setContacts] = useState<Contacts.Contact[]>([]);
     const [filteredContacts, setFilteredContacts] = useState<Contacts.Contact[]>([]);
     const [contactSearch, setContactSearch] = useState("");
     const [contactsLoading, setContactsLoading] = useState(false);
     const [contactsError, setContactsError] = useState<string | null>(null);
+    const [selectedContacts, setSelectedContacts] = useState<Contacts.Contact[]>([]);
 
     const [manualName, setManualName] = useState("");
     const [manualPhone, setManualPhone] = useState("");
 
     const addPersonManual = () => {
-        if (!manualPhone.trim()) return;
+        setContactsError(null);
+
+        // strip anything just in case (future-proofing)
+        const cleaned = manualPhone.replace(/\D/g, "");
+
+        // basic guard first
+        if (cleaned.length !== 10) {
+            setContactsError("Phone number must be 10 digits.");
+            return;
+        }
+
+        // add US country code
+        const phoneObj = parsePhoneNumberFromString(`+1${cleaned}`);
+
+        if (!phoneObj || !phoneObj.isValid()) {
+            setContactsError("Phone Number Invalid.");
+            return;
+        }
+
+        try {
+            helpers.checkString(manualName, "Contact Name");
+        } catch (e: any) {
+            setContactsError(e.message);
+            return;
+        }
+
+        if (manualName.trim().length > 25 || manualName.trim().length < 2) {
+            setContactsError("Name must be between 2 and 25 chracters.")
+            return;
+        }
+
+        setManualName(manualName.trim())
+
+
         setPeople((prev) => [
             ...prev,
             { name: manualName.trim() || null, phone: manualPhone.trim() },
         ]);
+
+        Alert.alert("Success", "Person Added");
+
         setManualName("");
         setManualPhone("");
     };
@@ -147,6 +206,16 @@ export default function Manual() {
         }
     };
 
+    const toggleContactSelection = (contact: Contacts.Contact) => {
+        const exists = selectedContacts.some((c) => c.id === contact.id);
+
+        if (exists) {
+            setSelectedContacts((prev) => prev.filter((c) => c.id !== contact.id));
+        } else {
+            setSelectedContacts((prev) => [...prev, contact]);
+        }
+    };
+
     const importContact = async (contact: Contacts.Contact) => {
         const phone = contact.phoneNumbers?.[0]?.number ?? "";
         let imageUri: string | undefined;
@@ -167,8 +236,57 @@ export default function Manual() {
         setPeople((prev) => [...prev, { name: contact.name ?? null, phone, imageUri }]);
     };
 
+    const confirmImportContacts = async () => {
+        const newPeople: Person[] = [];
+
+        for (const contact of selectedContacts) {
+            const phone = contact.phoneNumbers?.[0]?.number ?? "";
+            let imageUri: string | undefined;
+
+            if (contact.imageAvailable && contact.id) {
+                try {
+                    const full = await Contacts.getContactByIdAsync(contact.id, [Contacts.Fields.Image]);
+                    if (full?.image?.base64) {
+                        imageUri = `data:image/jpeg;base64,${full.image.base64}`;
+                    } else if (full?.image?.uri) {
+                        imageUri = full.image.uri;
+                    }
+                } catch {
+                    imageUri = contact.image?.uri;
+                }
+            }
+
+            newPeople.push({
+                name: contact.name ?? null,
+                phone,
+                imageUri,
+            });
+        }
+
+        setPeople((prev) => [...prev, ...newPeople]);
+
+        setSelectedContacts([]);
+
+        Alert.alert("Success", "Contacts Added");
+
+        setView("main"); // or close modal if you want
+    };
+
     const removeContact = (index: number) => {
+        const removedPerson = people[index];
+
         setPeople((prev) => prev.filter((_, i) => i !== index));
+
+        setItems((prev) =>
+            prev.map((item) => ({
+                ...item,
+                owners: item.owners.filter((owner) => owner !== removedPerson),
+            }))
+        );
+
+        setSelectedPeople((prev) =>
+            prev.filter((person) => person !== removedPerson)
+        );
     };
 
     const isContactSelected = (contact: Contacts.Contact) =>
@@ -229,7 +347,7 @@ export default function Manual() {
         setItemModalVisible(true);
     };
 
-    const submitBill = () => {
+    const submitBill = async () => {
         const bill = {
             id: Date.now().toString(),
             dateUploaded: new Date().toISOString().split("T")[0],
@@ -238,9 +356,26 @@ export default function Manual() {
             people,
             items,
         };
-        console.log(JSON.stringify(bill, null, 2));
-        Alert.alert("Bill JSON Created");
-        router.push("/dashboard");
+        // console.log(JSON.stringify(bill, null, 2));
+        try {
+            const folder = new Directory(Paths.document, "NoOwe");
+            if (!folder.exists) folder.create();
+
+            const billsFile = new File(folder, "bills.json");
+            let existing: typeof bill[] = [];
+
+            if (billsFile.exists) {
+                const text = await billsFile.text();
+                existing = JSON.parse(text);
+            }
+
+            existing.push(bill);
+            billsFile.write(JSON.stringify(existing));
+            Alert.alert("Bill JSON Created");
+            router.push("/dashboard");
+        } catch (e: any) {
+            Alert.alert("Error", e.message)
+        }
     };
 
     const toggleSelectPerson = (person: Person) => {
@@ -542,7 +677,7 @@ export default function Manual() {
                 <Button
                     mode="contained"
                     disabled={submitBillGreyedOut}
-                    onPress={submitBill}
+                    onPress={async() => await submitBill()}
                     contentStyle={{ paddingVertical: 6 }}
                 >
                     Submit Bill
@@ -570,7 +705,7 @@ export default function Manual() {
                             paddingHorizontal: 24,
                         }}
                     >
-                        <Pressable onPress={() => {}} style={{ width: "100%" }}>
+                        <Pressable onPress={() => { }} style={{ width: "100%" }}>
                             <View
                                 style={{
                                     backgroundColor: theme.colors.surface,
@@ -580,127 +715,127 @@ export default function Manual() {
                                     paddingBottom: 24,
                                 }}
                             >
-                            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                                <Text variant="titleLarge" style={{ color: theme.colors.onSurface, fontWeight: "700" }}>
-                                    {editingItemIndex !== null ? "Edit Item" : "Add Item"}
-                                </Text>
-                                <IconButton
-                                    icon="close"
-                                    size={20}
-                                    iconColor={theme.colors.onSurfaceVariant}
-                                    onPress={() => setItemModalVisible(false)}
+                                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                                    <Text variant="titleLarge" style={{ color: theme.colors.onSurface, fontWeight: "700" }}>
+                                        {editingItemIndex !== null ? "Edit Item" : "Add Item"}
+                                    </Text>
+                                    <IconButton
+                                        icon="close"
+                                        size={20}
+                                        iconColor={theme.colors.onSurfaceVariant}
+                                        onPress={() => setItemModalVisible(false)}
+                                    />
+                                </View>
+
+                                <TextInput
+                                    label="Item Name"
+                                    value={itemName}
+                                    onChangeText={setItemName}
+                                    style={{ marginBottom: 12 }}
                                 />
-                            </View>
+                                <TextInput
+                                    label="Item Cost"
+                                    value={itemCost}
+                                    onChangeText={setItemCost}
+                                    keyboardType="decimal-pad"
+                                    style={{ marginBottom: 20 }}
+                                />
 
-                            <TextInput
-                                label="Item Name"
-                                value={itemName}
-                                onChangeText={setItemName}
-                                style={{ marginBottom: 12 }}
-                            />
-                            <TextInput
-                                label="Item Cost"
-                                value={itemCost}
-                                onChangeText={setItemCost}
-                                keyboardType="decimal-pad"
-                                style={{ marginBottom: 20 }}
-                            />
+                                <Text
+                                    variant="labelSmall"
+                                    style={{
+                                        color: theme.colors.onSurfaceVariant,
+                                        textTransform: "uppercase",
+                                        letterSpacing: 1.2,
+                                        marginBottom: 12,
+                                    }}
+                                >
+                                    Assign People
+                                </Text>
 
-                            <Text
-                                variant="labelSmall"
-                                style={{
-                                    color: theme.colors.onSurfaceVariant,
-                                    textTransform: "uppercase",
-                                    letterSpacing: 1.2,
-                                    marginBottom: 12,
-                                }}
-                            >
-                                Assign People
-                            </Text>
-
-                            <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
-                                {people.map((person, index) => {
-                                    const personSelected = selectedPeople.includes(person);
-                                    return (
-                                        <Pressable
-                                            key={index}
-                                            onPress={() => toggleSelectPerson(person)}
-                                            style={{
-                                                flexDirection: "row",
-                                                alignItems: "center",
-                                                padding: 12,
-                                                marginBottom: 8,
-                                                borderRadius: 10,
-                                                borderWidth: 1,
-                                                borderColor: personSelected
-                                                    ? theme.colors.primary
-                                                    : theme.colors.outlineVariant,
-                                                backgroundColor: personSelected
-                                                    ? theme.colors.primaryContainer
-                                                    : "transparent",
-                                            }}
-                                        >
-                                            <View
+                                <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
+                                    {people.map((person, index) => {
+                                        const personSelected = selectedPeople.includes(person);
+                                        return (
+                                            <Pressable
+                                                key={index}
+                                                onPress={() => toggleSelectPerson(person)}
                                                 style={{
-                                                    width: 34,
-                                                    height: 34,
-                                                    borderRadius: 17,
-                                                    marginRight: 12,
-                                                    overflow: "hidden",
+                                                    flexDirection: "row",
+                                                    alignItems: "center",
+                                                    padding: 12,
+                                                    marginBottom: 8,
+                                                    borderRadius: 10,
+                                                    borderWidth: 1,
+                                                    borderColor: personSelected
+                                                        ? theme.colors.primary
+                                                        : theme.colors.outlineVariant,
+                                                    backgroundColor: personSelected
+                                                        ? theme.colors.primaryContainer
+                                                        : "transparent",
                                                 }}
                                             >
-                                                <PersonAvatar
-                                                    imageUri={person.imageUri}
-                                                    name={person.name}
-                                                    size={34}
-                                                    bgColor={personSelected ? theme.colors.primary : theme.colors.surfaceVariant}
-                                                    textColor={personSelected ? theme.colors.onPrimary : theme.colors.onSurfaceVariant}
-                                                />
-                                            </View>
-                                            <View style={{ flex: 1 }}>
-                                                <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, fontWeight: "600" }}>
-                                                    {person.name ?? "No Name"}
-                                                </Text>
-                                                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                                                    {person.phone}
-                                                </Text>
-                                            </View>
-                                            {personSelected && (
                                                 <View
                                                     style={{
-                                                        width: 20,
-                                                        height: 20,
-                                                        borderRadius: 10,
-                                                        backgroundColor: theme.colors.primary,
-                                                        justifyContent: "center",
-                                                        alignItems: "center",
+                                                        width: 34,
+                                                        height: 34,
+                                                        borderRadius: 17,
+                                                        marginRight: 12,
+                                                        overflow: "hidden",
                                                     }}
                                                 >
-                                                    <Text style={{ color: theme.colors.onPrimary, fontSize: 12, fontWeight: "800" }}>
-                                                        ✓
+                                                    <PersonAvatar
+                                                        imageUri={person.imageUri}
+                                                        name={person.name}
+                                                        size={34}
+                                                        bgColor={personSelected ? theme.colors.primary : theme.colors.surfaceVariant}
+                                                        textColor={personSelected ? theme.colors.onPrimary : theme.colors.onSurfaceVariant}
+                                                    />
+                                                </View>
+                                                <View style={{ flex: 1 }}>
+                                                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, fontWeight: "600" }}>
+                                                        {person.name ?? "No Name"}
+                                                    </Text>
+                                                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                                                        {person.phone}
                                                     </Text>
                                                 </View>
-                                            )}
-                                        </Pressable>
-                                    );
-                                })}
-                            </ScrollView>
+                                                {personSelected && (
+                                                    <View
+                                                        style={{
+                                                            width: 20,
+                                                            height: 20,
+                                                            borderRadius: 10,
+                                                            backgroundColor: theme.colors.primary,
+                                                            justifyContent: "center",
+                                                            alignItems: "center",
+                                                        }}
+                                                    >
+                                                        <Text style={{ color: theme.colors.onPrimary, fontSize: 12, fontWeight: "800" }}>
+                                                            ✓
+                                                        </Text>
+                                                    </View>
+                                                )}
+                                            </Pressable>
+                                        );
+                                    })}
+                                </ScrollView>
 
-                            {itemError !== "" && (
-                                <HelperText type="error" visible style={{ marginTop: 4 }}>
-                                    {itemError}
-                                </HelperText>
-                            )}
+                                {itemError !== "" && (
+                                    <HelperText type="error" visible style={{ marginTop: 4 }}>
+                                        {itemError}
+                                    </HelperText>
+                                )}
 
-                            <Button
-                                mode="contained"
-                                onPress={AddItem}
-                                disabled={submitItemGreyedOut}
-                                style={{ marginTop: 16 }}
-                                contentStyle={{ paddingVertical: 4 }}
-                            >
-                                {editingItemIndex !== null ? "Save Changes" : "Add Item"}
-                            </Button>
+                                <Button
+                                    mode="contained"
+                                    onPress={AddItem}
+                                    disabled={submitItemGreyedOut}
+                                    style={{ marginTop: 16 }}
+                                    contentStyle={{ paddingVertical: 4 }}
+                                >
+                                    {editingItemIndex !== null ? "Save Changes" : "Add Item"}
+                                </Button>
                             </View>
                         </Pressable>
                     </Pressable>
@@ -712,114 +847,121 @@ export default function Manual() {
                 visible={peopleModalVisible}
                 onClose={() => { setView("main"); setPeopleModalVisible(false); }}
             >
-                        <View
-                            style={{
-                                backgroundColor: theme.colors.surface,
-                                borderTopLeftRadius: 28,
-                                borderTopRightRadius: 28,
-                                paddingTop: 12,
-                                paddingHorizontal: 24,
-                                paddingBottom: insets.bottom + 24,
-                                minHeight: view !== "main" ? "65%" : undefined,
-                                maxHeight: "90%",
-                            }}
-                        >
-                            <View
+                <View
+                    style={{
+                        backgroundColor: theme.colors.surface,
+                        borderTopLeftRadius: 28,
+                        borderTopRightRadius: 28,
+                        paddingTop: 12,
+                        paddingHorizontal: 24,
+                        paddingBottom: insets.bottom + 24,
+                        minHeight: view !== "main" ? "65%" : undefined,
+                        maxHeight: "90%",
+                    }}
+                >
+                    <View
+                        style={{
+                            width: 40,
+                            height: 4,
+                            borderRadius: 2,
+                            backgroundColor: theme.colors.outlineVariant,
+                            alignSelf: "center",
+                            marginBottom: 20,
+                        }}
+                    />
+
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                        <Text variant="titleLarge" style={{ color: theme.colors.onSurface, fontWeight: "700" }}>
+                            {view === "main" ? "Add People" : view === "manual" ? "Manual Entry" : "From Contacts"}
+                        </Text>
+                        <IconButton
+                            icon="close"
+                            size={20}
+                            iconColor={theme.colors.onSurfaceVariant}
+                            onPress={() => { setView("main"); setPeopleModalVisible(false); }}
+                        />
+                    </View>
+
+                    {view === "main" && (
+                        <View style={{ gap: 12 }}>
+                            <Pressable
+                                onPress={() => setView("manual")}
                                 style={{
-                                    width: 40,
-                                    height: 4,
-                                    borderRadius: 2,
-                                    backgroundColor: theme.colors.outlineVariant,
-                                    alignSelf: "center",
-                                    marginBottom: 20,
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    backgroundColor: theme.colors.surfaceVariant,
+                                    borderRadius: 14,
+                                    padding: 18,
                                 }}
-                            />
-
-                            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                                <Text variant="titleLarge" style={{ color: theme.colors.onSurface, fontWeight: "700" }}>
-                                    {view === "main" ? "Add People" : view === "manual" ? "Manual Entry" : "From Contacts"}
-                                </Text>
-                                <IconButton
-                                    icon="close"
-                                    size={20}
-                                    iconColor={theme.colors.onSurfaceVariant}
-                                    onPress={() => { setView("main"); setPeopleModalVisible(false); }}
-                                />
-                            </View>
-
-                            {view === "main" && (
-                                <View style={{ gap: 12 }}>
-                                    <Pressable
-                                        onPress={() => setView("manual")}
-                                        style={{
-                                            flexDirection: "row",
-                                            alignItems: "center",
-                                            backgroundColor: theme.colors.surfaceVariant,
-                                            borderRadius: 14,
-                                            padding: 18,
-                                        }}
-                                    >
-                                        <View
-                                            style={{
-                                                width: 40,
-                                                height: 40,
-                                                borderRadius: 20,
-                                                backgroundColor: theme.colors.primaryContainer,
-                                                justifyContent: "center",
-                                                alignItems: "center",
-                                                marginRight: 14,
-                                            }}
-                                        >
-                                            <Icon source="pencil-outline" color="white" size={20} />
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: "700" }}>
-                                                Enter Manually
-                                            </Text>
-                                            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                                                Type in a name and phone number
-                                            </Text>
-                                        </View>
-                                        <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 18 }}>›</Text>
-                                    </Pressable>
-
-                                    <Pressable
-                                        onPress={() => setView("auto")}
-                                        style={{
-                                            flexDirection: "row",
-                                            alignItems: "center",
-                                            backgroundColor: theme.colors.surfaceVariant,
-                                            borderRadius: 14,
-                                            padding: 18,
-                                        }}
-                                    >
-                                        <View
-                                            style={{
-                                                width: 40,
-                                                height: 40,
-                                                borderRadius: 20,
-                                                backgroundColor: theme.colors.primaryContainer,
-                                                justifyContent: "center",
-                                                alignItems: "center",
-                                                marginRight: 14,
-                                            }}
-                                        >
-                                            <Icon source="account-multiple-outline" color="white" size={20} />
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: "700" }}>
-                                                Import from Contacts
-                                            </Text>
-                                            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                                                Pick from your phone contacts
-                                            </Text>
-                                        </View>
-                                        <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 18 }}>›</Text>
-                                    </Pressable>
+                            >
+                                <View
+                                    style={{
+                                        width: 40,
+                                        height: 40,
+                                        borderRadius: 20,
+                                        backgroundColor: theme.colors.primaryContainer,
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        marginRight: 14,
+                                    }}
+                                >
+                                    <Icon source="pencil-outline" color="white" size={20} />
                                 </View>
-                            )}
+                                <View style={{ flex: 1 }}>
+                                    <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: "700" }}>
+                                        Enter Manually
+                                    </Text>
+                                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                                        Type in a name and phone number
+                                    </Text>
+                                </View>
+                                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 18 }}>›</Text>
+                            </Pressable>
 
-                            {view === "manual" && (
+                            <Pressable
+                                onPress={() => setView("auto")}
+                                style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    backgroundColor: theme.colors.surfaceVariant,
+                                    borderRadius: 14,
+                                    padding: 18,
+                                }}
+                            >
+                                <View
+                                    style={{
+                                        width: 40,
+                                        height: 40,
+                                        borderRadius: 20,
+                                        backgroundColor: theme.colors.primaryContainer,
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        marginRight: 14,
+                                    }}
+                                >
+                                    <Icon source="account-multiple-outline" color="white" size={20} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: "700" }}>
+                                        Import from Contacts
+                                    </Text>
+                                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                                        Pick from your phone contacts
+                                    </Text>
+                                </View>
+                                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 18 }}>›</Text>
+                            </Pressable>
+                        </View>
+                    )}
+
+                    {view === "manual" && (
+                        <ScrollView keyboardShouldPersistTaps="handled">
+                            <Pressable onPress={Keyboard.dismiss}>
+                                {contactsError && (
+                                    <HelperText type="error" visible>
+                                        {contactsError}
+                                    </HelperText>
+                                )}
                                 <View style={{ flex: 1, justifyContent: "center", paddingVertical: 24 }}>
                                     <TextInput
                                         label="Name"
@@ -848,101 +990,148 @@ export default function Manual() {
                                         </Button>
                                     </View>
                                 </View>
-                            )}
+                            </Pressable>
+                        </ScrollView>
+                    )}
 
-                            {view === "auto" && (
-                                <>
-                                    {contacts.length === 0 ? (
-                                        <View style={{ gap: 12 }}>
-                                            {contactsError && (
-                                                <HelperText type="error" visible>
-                                                    {contactsError}
-                                                </HelperText>
-                                            )}
-                                            <Button
-                                                mode="contained"
-                                                onPress={loadContacts}
-                                                loading={contactsLoading}
-                                                contentStyle={{ paddingVertical: 4 }}
-                                            >
-                                                Load Contacts
-                                            </Button>
-                                            <Button mode="outlined" onPress={() => setView("main")}>
-                                                Back
-                                            </Button>
-                                        </View>
-                                    ) : (
-                                        <>
-                                            <TextInput
-                                                label="Search"
-                                                value={contactSearch}
-                                                onChangeText={handleContactSearch}
-                                                left={<TextInput.Icon icon="magnify" />}
-                                                style={{ marginBottom: 14 }}
-                                            />
-                                            <ScrollView style={{ height: 420 }} showsVerticalScrollIndicator={false}>
-                                                {filteredContacts.map((contact, index) => {
-                                                    const selected = isContactSelected(contact);
-                                                    return (
-                                                        <Pressable
-                                                            key={contact.id ?? index}
-                                                            onPress={() => importContact(contact)}
-                                                            style={{
-                                                                flexDirection: "row",
-                                                                alignItems: "center",
-                                                                padding: 12,
-                                                                marginBottom: 8,
-                                                                borderRadius: 10,
-                                                                borderWidth: 1,
-                                                                borderColor: selected
-                                                                    ? theme.colors.primary
-                                                                    : theme.colors.outlineVariant,
-                                                                backgroundColor: selected
-                                                                    ? theme.colors.primaryContainer
-                                                                    : "transparent",
-                                                            }}
-                                                        >
-                                                            <View
-                                                                style={{
-                                                                    width: 36,
-                                                                    height: 36,
-                                                                    borderRadius: 18,
-                                                                    marginRight: 12,
-                                                                    overflow: "hidden",
-                                                                }}
-                                                            >
-                                                                <PersonAvatar
-                                                                    imageUri={
-                                                                        contact.image?.base64
-                                                                            ? `data:image/jpeg;base64,${contact.image.base64}`
-                                                                            : (contact.imageAvailable ? contact.image?.uri : undefined)
-                                                                    }
-                                                                    name={contact.name ?? null}
-                                                                    size={36}
-                                                                    bgColor={selected ? theme.colors.primary : theme.colors.surfaceVariant}
-                                                                    textColor={selected ? theme.colors.onPrimary : theme.colors.onSurfaceVariant}
-                                                                />
-                                                            </View>
-                                                            <View style={{ flex: 1 }}>
-                                                                <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, fontWeight: "600" }}>
-                                                                    {contact.name ?? "Unknown"}
-                                                                </Text>
-                                                                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                                                                    {contact.phoneNumbers?.[0]?.number ?? ""}
-                                                                </Text>
-                                                            </View>
-                                                        </Pressable>
-                                                    );
-                                                })}
-                                            </ScrollView>
-                                            <Button mode="outlined" onPress={() => setView("main")} style={{ marginTop: 12 }}>
-                                                Back
-                                            </Button>
-                                        </>
+                    {view === "auto" && (
+                        <>
+                            {contacts.length === 0 ? (
+                                <View style={{ gap: 12 }}>
+                                    {contactsError && (
+                                        <HelperText type="error" visible>
+                                            {contactsError}
+                                        </HelperText>
                                     )}
+                                    <Button
+                                        mode="contained"
+                                        onPress={loadContacts}
+                                        loading={contactsLoading}
+                                        contentStyle={{ paddingVertical: 4 }}
+                                    >
+                                        Load Contacts
+                                    </Button>
+                                    <Button mode="outlined" onPress={() => setView("main")}>
+                                        Back
+                                    </Button>
+                                </View>
+                            ) : (
+                                <>
+                                    <TextInput
+                                        label="Search"
+                                        value={contactSearch}
+                                        onChangeText={handleContactSearch}
+                                        left={<TextInput.Icon icon="magnify" />}
+                                        style={{ marginBottom: 14 }}
+                                    />
+                                    <ScrollView style={{ height: 420 }} showsVerticalScrollIndicator={false}>
+                                        {filteredContacts.map((contact, index) => {
+                                            const selected = selectedContacts.some((c) => c.id === contact.id);;
+                                            return (
+                                                <Pressable
+                                                    key={contact.id ?? index}
+                                                    onPress={() => toggleContactSelection(contact)}
+                                                    style={{
+                                                        flexDirection: "row",
+                                                        alignItems: "center",
+                                                        padding: 12,
+                                                        marginBottom: 8,
+                                                        borderRadius: 10,
+                                                        borderWidth: 1,
+                                                        borderColor: selected
+                                                            ? theme.colors.primary
+                                                            : theme.colors.outlineVariant,
+                                                        backgroundColor: selected
+                                                            ? theme.colors.primaryContainer
+                                                            : "transparent",
+                                                    }}
+                                                >
+                                                    <View
+                                                        style={{
+                                                            width: 36,
+                                                            height: 36,
+                                                            borderRadius: 18,
+                                                            marginRight: 12,
+                                                            overflow: "hidden",
+                                                        }}
+                                                    >
+                                                        <PersonAvatar
+                                                            imageUri={
+                                                                contact.image?.base64
+                                                                    ? `data:image/jpeg;base64,${contact.image.base64}`
+                                                                    : (contact.imageAvailable ? contact.image?.uri : undefined)
+                                                            }
+                                                            name={contact.name ?? null}
+                                                            size={36}
+                                                            bgColor={selected ? theme.colors.primary : theme.colors.surfaceVariant}
+                                                            textColor={selected ? theme.colors.onPrimary : theme.colors.onSurfaceVariant}
+                                                        />
+                                                    </View>
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, fontWeight: "600" }}>
+                                                            {contact.name ?? "Unknown"}
+                                                        </Text>
+                                                        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                                                            {contact.phoneNumbers?.[0]?.number ?? ""}
+                                                        </Text>
+                                                    </View>
+                                                </Pressable>
+                                            );
+                                        })}
+                                    </ScrollView>
+                                    <View style={{ marginTop: 12 }}>
+                                        <Text variant="labelSmall" style={{ marginBottom: 8 }}>
+                                            Selected ({selectedContacts.length})
+                                        </Text>
+
+                                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                            {selectedContacts.map((c, i) => (
+                                                <View key={i} style={{ alignItems: "center", marginRight: 12 }}>
+                                                    <View
+                                                        style={{
+                                                            width: 40,
+                                                            height: 40,
+                                                            borderRadius: 20,
+                                                            overflow: "hidden",
+                                                            marginBottom: 4,
+                                                        }}
+                                                    >
+                                                        <PersonAvatar
+                                                            imageUri={
+                                                                c.image?.base64
+                                                                    ? `data:image/jpeg;base64,${c.image.base64}`
+                                                                    : c.image?.uri
+                                                            }
+                                                            name={c.name ?? null}
+                                                            size={40}
+                                                            bgColor={theme.colors.primaryContainer}
+                                                            textColor={theme.colors.primary}
+                                                        />
+                                                    </View>
+                                                    <Text variant="labelSmall" numberOfLines={1} style={{ maxWidth: 50 }}>
+                                                        {c.name ?? "N/A"}
+                                                    </Text>
+                                                </View>
+                                            ))}
+                                        </ScrollView>
+
+                                        <Button
+                                            mode="contained"
+                                            onPress={confirmImportContacts}
+                                            style={{ marginTop: 12 }}
+                                            contentStyle={{ paddingVertical: 4 }}
+                                        >
+                                            Add Selected
+                                        </Button>
+                                    </View>
+                                    <Button mode="outlined" onPress={() => setView("main")} style={{ marginTop: 12 }}>
+                                        Back
+                                    </Button>
                                 </>
                             )}
-                        </View>
+                        </>
+                    )}
+                </View>
             </BottomSheet>
         </View>
     );
