@@ -1,5 +1,5 @@
 import { validateLogin } from "@/validation/helpers";
-import { Directory, File, Paths } from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system/next";
 import { Redirect, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -9,8 +9,8 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, HelperText, Text, TextInput, useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const PAYMENT_OPTIONS = ["Venmo", "PayPal", "Zelle", "Cash App"];
 const TOTAL_STEPS = 4;

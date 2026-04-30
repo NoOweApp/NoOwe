@@ -1,4 +1,4 @@
-import { Directory, File, Paths } from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system/next";
 import React, { createContext, useCallback, useContext } from "react";
 
 export type ThemeMode = "dark" | "light";

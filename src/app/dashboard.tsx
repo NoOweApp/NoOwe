@@ -1,5 +1,6 @@
 import { BottomSheet } from "@/src/components/BottomSheet";
-import { Directory, File, Paths } from "expo-file-system";
+import { ReminderSheet } from "@/src/components/ReminderSheet";
+import { Directory, File, Paths } from "expo-file-system/next";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -30,6 +31,11 @@ type Bill = {
   totalAmountPaid: number;
   people: Person[];
   items?: BillItem[];
+};
+
+type ReminderBill = {
+  description: string;
+  totalAmountPaid: number;
 };
 
 function PersonAvatar({
@@ -74,6 +80,11 @@ export default function Dashboard() {
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
 
+  // Stashed separately so ReminderSheet has data after selectedBill is cleared
+  const [reminderSheetVisible, setReminderSheetVisible] = useState(false);
+  const [reminderPeople, setReminderPeople] = useState<Person[]>([]);
+  const [reminderBill, setReminderBill] = useState<ReminderBill | null>(null);
+
   // Reload bills every time the screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -100,6 +111,24 @@ export default function Dashboard() {
   const totalAmount = bills.reduce((sum, b) => sum + b.totalAmountPaid, 0);
   const openBillModal = (bill: Bill) => setSelectedBill(bill);
   const closeBillModal = () => setSelectedBill(null);
+
+  // Stash bill data, close the details sheet, then wait for its slide-out
+  // animation to finish (300ms) before opening the reminder sheet.
+  // This prevents two iOS Modals from being mounted simultaneously.
+  const openReminderSheet = () => {
+    const people = selectedBill?.people ?? [];
+    const bill: ReminderBill | null = selectedBill
+      ? { description: selectedBill.description, totalAmountPaid: selectedBill.totalAmountPaid }
+      : null;
+
+    setReminderPeople(people);
+    setReminderBill(bill);
+    setSelectedBill(null); // starts the BottomSheet slide-out animation (~260ms)
+
+    setTimeout(() => {
+      setReminderSheetVisible(true);
+    }, 320); // just past the slide-out duration so the first Modal is fully gone
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -468,7 +497,7 @@ export default function Dashboard() {
                 People ({selectedBill.people.length})
               </Text>
 
-              {/* People avatar chips — now with images */}
+              {/* People avatar chips */}
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -505,7 +534,7 @@ export default function Dashboard() {
 
               <Button
                 mode="contained"
-                onPress={() => console.log("Send reminder pressed")}
+                onPress={openReminderSheet}
                 style={{ marginBottom: 10 }}
                 contentStyle={{ paddingVertical: 4 }}
               >
@@ -522,6 +551,14 @@ export default function Dashboard() {
           )}
         </View>
       </BottomSheet>
+
+      {/* Reminder sheet — opened after bill details sheet is fully closed */}
+      <ReminderSheet
+        visible={reminderSheetVisible}
+        onClose={() => setReminderSheetVisible(false)}
+        bill={reminderBill}
+        selectedPeople={reminderPeople}
+      />
     </View>
   );
 }

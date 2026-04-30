@@ -1,7 +1,7 @@
 import { BottomSheet } from "@/src/components/BottomSheet";
 import * as helpers from "@/validation/helpers";
 import * as Contacts from "expo-contacts";
-import { Directory, File, Paths } from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system/next";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import React, { useEffect, useState } from "react";
