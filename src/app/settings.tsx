@@ -1,9 +1,8 @@
-import { Directory, File, Paths } from "expo-file-system";
+import { useAppTheme } from "@/src/context/ThemeContext";
+import { Directory, File, Paths } from "expo-file-system/next";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { Alert, ScrollView, Switch, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAppTheme } from "@/src/context/ThemeContext";
 import {
   Button,
   Checkbox,
@@ -14,6 +13,7 @@ import {
   TextInput,
   useTheme,
 } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type PaymentMethod = {
   service: string;
