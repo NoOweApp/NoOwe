@@ -1,13 +1,5 @@
-function splitBill(items, extras) { // TODO: Splitting cents between people
+function splitBill(items) {
     const result = {};
-    // [owner]: string "phone number", {
-    //     cost: number "total costs for them",
-    //     [ ITEMS
-    //         name: string "item_name",
-    //         percentage: number "percentage assigned to them"
-    //         cost: amount assigned to them
-    //     ]
-    // }
 
     for (const item of items) {
         const { name, cost, owners } = item;
@@ -49,14 +41,64 @@ function splitBill(items, extras) { // TODO: Splitting cents between people
 
     return Object.values(result);
     // {
-    //      owner: string "phone number", 
+    //     owner: string "phone number", 
     //     cost: number "total costs for them",
     //     [ ITEMS
     //         name: string "item_name",
     //         percentage: number "percentage assigned to them"
-    //         // maybe add tax? as another item
+    //         cost: amount assigned to them
     //     ]
     // }
 }
 
-export { splitBill };
+function splitTax(result, expenses) {
+    // result = {
+    //     owner: string "phone number", 
+    //     cost: number "total costs for them",
+    //     [ ITEMS
+    //         name: string "item_name",
+    //         percentage: number "percentage assigned to them"
+    //         cost: amount assigned to them
+    //     ]
+    // }
+    // expenses: number
+    let totalCost = 0;
+    for (const person of result) {
+        totalCost += person.cost;
+    }
+
+    const expensesInCents = Math.round(expenses * 100);
+    const totalCostInCents = Math.round(totalCost * 100);
+
+    let remainderCents = expensesInCents;
+
+    for (const person of result) {
+        const share = totalCostInCents > 0
+            ? Math.floor((person.cost / totalCost) * expensesInCents)
+            : 0;
+        person.tax = share;
+        remainderCents -= share;
+    }
+
+    for (let i = 0; i < remainderCents; i++) {
+        result[i].tax += 1;
+    }
+
+    for (const person of result) {
+        person.tax = person.tax / 100;
+    }
+
+    // result = {
+    //     owner: string "phone number", 
+    //     cost: number "total costs for them",
+    //     tax: number
+    //     [ ITEMS
+    //         name: string "item_name",
+    //         percentage: number "percentage assigned to them"
+    //         cost: amount assigned to them
+    //     ]
+    // }
+    return result;
+}
+
+export { splitBill, splitTax };
