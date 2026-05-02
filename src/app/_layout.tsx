@@ -135,9 +135,9 @@ const lightTheme = {
 const fontConfig = {
   default: {
     regular: { fontFamily: "WorkSans-Regular", fontWeight: "400" as const },
-    medium:  { fontFamily: "WorkSans-Bold",    fontWeight: "700" as const },
-    bold:    { fontFamily: "WorkSans-Bold",    fontWeight: "700" as const },
-    heavy:   { fontFamily: "WorkSans-Bold",    fontWeight: "700" as const },
+    medium: { fontFamily: "WorkSans-Bold", fontWeight: "700" as const },
+    bold: { fontFamily: "WorkSans-Bold", fontWeight: "700" as const },
+    heavy: { fontFamily: "WorkSans-Bold", fontWeight: "700" as const },
   },
 };
 
@@ -145,7 +145,7 @@ function ThemedApp() {
   const { mode } = useAppTheme();
 
   const [fontsLoaded] = useFonts({
-    "WorkSans-Bold":    require("../assets/WorkSans-Bold.ttf"),
+    "WorkSans-Bold": require("../assets/WorkSans-Bold.ttf"),
     "WorkSans-Regular": require("../assets/WorkSans-Regular.ttf"),
   });
 
@@ -170,10 +170,10 @@ function ThemedApp() {
 
 export default function Layout() {
   return (
-        <GestureHandlerRootView style={{ flex: 1 }}>
-    <ThemeProvider>
-      <ThemedApp />
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <ThemedApp />
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }
