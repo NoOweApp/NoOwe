@@ -2,7 +2,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
-import { Image, Modal, TouchableOpacity, View } from "react-native";
+import { Dimensions, Image, Modal, ScrollView, TouchableOpacity, View } from "react-native";
 import { Button, Icon, IconButton, Text, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -10,7 +10,6 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS, useSharedValue } from 'react-native-reanimated';
 
 import * as ImageManipulator from 'expo-image-manipulator';
-import { Dimensions } from 'react-native';
 
 import { parseBill } from "../utils/billParser";
 
@@ -32,6 +31,8 @@ export default function Scan() {
     const lastZoom = useSharedValue(0);
 
     const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+
+    const [galleryModalVisible, setGalleryModalVisible] = useState<boolean>(false);
 
     const pinchGesture = Gesture.Pinch()
         .onStart(() => {
@@ -200,9 +201,26 @@ export default function Scan() {
                             marginRight: 8,
                         }}
                     >
-                        <Text variant="labelMedium" style={{ color: theme.colors.onPrimary, fontWeight: "700" }}>
-                            {imgList.length} photo{imgList.length !== 1 ? "s" : ""}
-                        </Text>
+                        {imgList.length > 0 && (
+                            <TouchableOpacity
+                                onPress={() => setGalleryModalVisible(true)}
+                                style={{
+                                    backgroundColor: theme.colors.primary,
+                                    borderRadius: 14,
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 5,
+                                    marginRight: 8,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                }}
+                            >
+                                <Icon source="image-multiple" color={theme.colors.onPrimary} size={16} />
+                                <Text variant="labelMedium" style={{ color: theme.colors.onPrimary, fontWeight: '700' }}>
+                                    {imgList.length} photo{imgList.length !== 1 ? 's' : ''}
+                                </Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 )}
             </View>
@@ -392,6 +410,74 @@ export default function Scan() {
                             Discard
                         </Button>
                     </View>
+                </View>
+            </Modal>
+            <Modal visible={galleryModalVisible} animationType="slide">
+                <View
+                    style={{
+                        flex: 1,
+                        backgroundColor: '#0d0d0d',
+                        paddingTop: insets.top + 16,
+                        paddingBottom: insets.bottom + 20,
+                        paddingHorizontal: 16,
+                    }}
+                >
+                    {/* Header */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+                        <Text variant="titleLarge" style={{ color: 'white', fontWeight: '700', flex: 1 }}>
+                            Saved Photos
+                        </Text>
+                        <IconButton
+                            icon="close"
+                            iconColor="white"
+                            size={22}
+                            onPress={() => setGalleryModalVisible(false)}
+                        />
+                    </View>
+
+                    {imgList.length === 0 ? (
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                            <Icon source="image-off-outline" color={theme.colors.onSurfaceVariant} size={48} />
+                            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>
+                                No photos yet
+                            </Text>
+                        </View>
+                    ) : (
+                        <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                            {imgList.map((img, index) => {
+                                const size = (SCREEN_W - 32 - 16) / 3; // 3 columns
+                                return (
+                                    <View key={index} style={{ width: size, height: size }}>
+                                        <Image
+                                            source={{ uri: img.uri }}
+                                            style={{ width: '100%', height: '100%', borderRadius: 10 }}
+                                        />
+                                        <TouchableOpacity
+                                            onPress={() => setImgList(cur => cur.filter((_, i) => i !== index))}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 4,
+                                                right: 4,
+                                                backgroundColor: 'rgba(0,0,0,0.6)',
+                                                borderRadius: 12,
+                                            }}
+                                        >
+                                            <Icon source="close-circle" color={theme.colors.error} size={24} />
+                                        </TouchableOpacity>
+                                    </View>
+                                );
+                            })}
+                        </ScrollView>
+                    )}
+
+                    <Button
+                        mode="contained"
+                        onPress={() => setGalleryModalVisible(false)}
+                        style={{ marginTop: 16 }}
+                        contentStyle={{ paddingVertical: 4 }}
+                    >
+                        Done
+                    </Button>
                 </View>
             </Modal>
         </View>
