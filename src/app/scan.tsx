@@ -3,8 +3,11 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
 import { Image, Modal, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Icon, IconButton, Text, useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS, useSharedValue } from 'react-native-reanimated';
 
 import { parseBill } from "../utils/billParser";
 
@@ -20,6 +23,20 @@ export default function Scan() {
     const [imgList, setImgList] = useState<{ uri: string; width: number; height: number }[]>([]);
     const [capturedPhoto, setCapturedPhoto] = useState<{ uri: string; width: number; height: number } | null>(null);
     const [previewModalVisible, setPreviewModalVisible] = useState<boolean>(false);
+
+    const [zoom, setZoom] = useState<number>(0);
+    const zoomRef = useSharedValue(0);
+    const lastZoom = useSharedValue(0);
+
+    const pinchGesture = Gesture.Pinch()
+        .onStart(() => {
+            lastZoom.value = zoomRef.value;
+        })
+        .onUpdate((event) => {
+            const next = Math.min(1, Math.max(0, lastZoom.value + (event.scale - 1) * 0.1));
+            zoomRef.value = next;
+            runOnJS(setZoom)(next);
+        });
 
     if (!permission || !permission.granted) {
         return (
@@ -115,7 +132,9 @@ export default function Scan() {
     return (
         <View style={{ flex: 1 }}>
             {/* Camera fills screen */}
-            <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" />
+            <GestureDetector gesture={pinchGesture}>
+                <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" zoom={zoom} />
+            </GestureDetector>
 
             {/* Darkened top bar */}
             <View
