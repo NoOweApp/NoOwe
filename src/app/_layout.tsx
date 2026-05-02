@@ -1,9 +1,10 @@
-import { Stack } from "expo-router";
+import { ThemeProvider, useAppTheme } from "@/src/context/ThemeContext";
 import { useFonts } from "expo-font";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { MD3DarkTheme, MD3LightTheme, PaperProvider, configureFonts } from "react-native-paper";
-import { ThemeProvider, useAppTheme } from "@/src/context/ThemeContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -134,9 +135,9 @@ const lightTheme = {
 const fontConfig = {
   default: {
     regular: { fontFamily: "WorkSans-Regular", fontWeight: "400" as const },
-    medium:  { fontFamily: "WorkSans-Bold",    fontWeight: "700" as const },
-    bold:    { fontFamily: "WorkSans-Bold",    fontWeight: "700" as const },
-    heavy:   { fontFamily: "WorkSans-Bold",    fontWeight: "700" as const },
+    medium: { fontFamily: "WorkSans-Bold", fontWeight: "700" as const },
+    bold: { fontFamily: "WorkSans-Bold", fontWeight: "700" as const },
+    heavy: { fontFamily: "WorkSans-Bold", fontWeight: "700" as const },
   },
 };
 
@@ -144,7 +145,7 @@ function ThemedApp() {
   const { mode } = useAppTheme();
 
   const [fontsLoaded] = useFonts({
-    "WorkSans-Bold":    require("../assets/WorkSans-Bold.ttf"),
+    "WorkSans-Bold": require("../assets/WorkSans-Bold.ttf"),
     "WorkSans-Regular": require("../assets/WorkSans-Regular.ttf"),
   });
 
@@ -169,8 +170,10 @@ function ThemedApp() {
 
 export default function Layout() {
   return (
-    <ThemeProvider>
-      <ThemedApp />
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <ThemedApp />
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

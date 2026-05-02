@@ -2,9 +2,14 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
-import { Image, Modal, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Dimensions, Image, Modal, ScrollView, TouchableOpacity, View } from "react-native";
 import { Button, Icon, IconButton, Text, useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS, useSharedValue } from 'react-native-reanimated';
+
+import * as ImageManipulator from 'expo-image-manipulator';
 
 import { parseBill } from "../utils/billParser";
 
@@ -20,6 +25,24 @@ export default function Scan() {
     const [imgList, setImgList] = useState<{ uri: string; width: number; height: number }[]>([]);
     const [capturedPhoto, setCapturedPhoto] = useState<{ uri: string; width: number; height: number } | null>(null);
     const [previewModalVisible, setPreviewModalVisible] = useState<boolean>(false);
+
+    const [zoom, setZoom] = useState<number>(0);
+    const zoomRef = useSharedValue(0);
+    const lastZoom = useSharedValue(0);
+
+    const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+
+    const [galleryModalVisible, setGalleryModalVisible] = useState<boolean>(false);
+
+    const pinchGesture = Gesture.Pinch()
+        .onStart(() => {
+            lastZoom.value = zoomRef.value;
+        })
+        .onUpdate((event) => {
+            const next = Math.min(1, Math.max(0, lastZoom.value + (event.scale - 1) * 0.1));
+            zoomRef.value = next;
+            runOnJS(setZoom)(next);
+        });
 
     if (!permission || !permission.granted) {
         return (
@@ -67,7 +90,8 @@ export default function Scan() {
         if (!cameraRef.current) return;
         const photo = await cameraRef.current.takePictureAsync();
         if (!photo) return;
-        setCapturedPhoto(photo);
+        const cropped = await cropToViewfinder(photo);
+        setCapturedPhoto(cropped);
         setPreviewModalVisible(true);
     };
 
@@ -112,10 +136,38 @@ export default function Scan() {
         router.push({ pathname: "/manual", params: { temp_bill: JSON.stringify(scanned_bill) } });
     };
 
+    const cropToViewfinder = async (photo: { uri: string; width: number; height: number }) => {
+        const viewfinderTop = insets.top + 80;
+        const viewfinderLeft = SCREEN_W * 0.10;
+        const viewfinderWidth = SCREEN_W * (1 - 0.10 - 0.10);
+        const viewfinderHeight = SCREEN_H * 0.44;
+
+        // Photo resolution vs screen size ratio
+        const scaleX = photo.width / SCREEN_W;
+        const scaleY = photo.height / SCREEN_H;
+
+        const cropRegion = {
+            originX: viewfinderLeft * scaleX,
+            originY: viewfinderTop * scaleY,
+            width: viewfinderWidth * scaleX,
+            height: viewfinderHeight * scaleY,
+        };
+
+        const cropped = await ImageManipulator.manipulateAsync(
+            photo.uri,
+            [{ crop: cropRegion }],
+            { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+        );
+
+        return { uri: cropped.uri, width: cropped.width, height: cropped.height };
+    };
+
     return (
         <View style={{ flex: 1 }}>
             {/* Camera fills screen */}
-            <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" />
+            <GestureDetector gesture={pinchGesture}>
+                <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" zoom={zoom} />
+            </GestureDetector>
 
             {/* Darkened top bar */}
             <View
@@ -149,9 +201,26 @@ export default function Scan() {
                             marginRight: 8,
                         }}
                     >
-                        <Text variant="labelMedium" style={{ color: theme.colors.onPrimary, fontWeight: "700" }}>
-                            {imgList.length} photo{imgList.length !== 1 ? "s" : ""}
-                        </Text>
+                        {imgList.length > 0 && (
+                            <TouchableOpacity
+                                onPress={() => setGalleryModalVisible(true)}
+                                style={{
+                                    backgroundColor: theme.colors.primary,
+                                    borderRadius: 14,
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 5,
+                                    marginRight: 8,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                }}
+                            >
+                                <Icon source="image-multiple" color={theme.colors.onPrimary} size={16} />
+                                <Text variant="labelMedium" style={{ color: theme.colors.onPrimary, fontWeight: '700' }}>
+                                    {imgList.length} photo{imgList.length !== 1 ? 's' : ''}
+                                </Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 )}
             </View>
@@ -341,6 +410,74 @@ export default function Scan() {
                             Discard
                         </Button>
                     </View>
+                </View>
+            </Modal>
+            <Modal visible={galleryModalVisible} animationType="slide">
+                <View
+                    style={{
+                        flex: 1,
+                        backgroundColor: '#0d0d0d',
+                        paddingTop: insets.top + 16,
+                        paddingBottom: insets.bottom + 20,
+                        paddingHorizontal: 16,
+                    }}
+                >
+                    {/* Header */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+                        <Text variant="titleLarge" style={{ color: 'white', fontWeight: '700', flex: 1 }}>
+                            Saved Photos
+                        </Text>
+                        <IconButton
+                            icon="close"
+                            iconColor="white"
+                            size={22}
+                            onPress={() => setGalleryModalVisible(false)}
+                        />
+                    </View>
+
+                    {imgList.length === 0 ? (
+                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                            <Icon source="image-off-outline" color={theme.colors.onSurfaceVariant} size={48} />
+                            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>
+                                No photos yet
+                            </Text>
+                        </View>
+                    ) : (
+                        <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                            {imgList.map((img, index) => {
+                                const size = (SCREEN_W - 32 - 16) / 3; // 3 columns
+                                return (
+                                    <View key={index} style={{ width: size, height: size }}>
+                                        <Image
+                                            source={{ uri: img.uri }}
+                                            style={{ width: '100%', height: '100%', borderRadius: 10 }}
+                                        />
+                                        <TouchableOpacity
+                                            onPress={() => setImgList(cur => cur.filter((_, i) => i !== index))}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 4,
+                                                right: 4,
+                                                backgroundColor: 'rgba(0,0,0,0.6)',
+                                                borderRadius: 12,
+                                            }}
+                                        >
+                                            <Icon source="close-circle" color={theme.colors.error} size={24} />
+                                        </TouchableOpacity>
+                                    </View>
+                                );
+                            })}
+                        </ScrollView>
+                    )}
+
+                    <Button
+                        mode="contained"
+                        onPress={() => setGalleryModalVisible(false)}
+                        style={{ marginTop: 16 }}
+                        contentStyle={{ paddingVertical: 4 }}
+                    >
+                        Done
+                    </Button>
                 </View>
             </Modal>
         </View>
