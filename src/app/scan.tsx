@@ -9,6 +9,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS, useSharedValue } from 'react-native-reanimated';
 
+import * as ImageManipulator from 'expo-image-manipulator';
+import { Dimensions } from 'react-native';
+
 import { parseBill } from "../utils/billParser";
 
 export default function Scan() {
@@ -27,6 +30,8 @@ export default function Scan() {
     const [zoom, setZoom] = useState<number>(0);
     const zoomRef = useSharedValue(0);
     const lastZoom = useSharedValue(0);
+
+    const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
     const pinchGesture = Gesture.Pinch()
         .onStart(() => {
@@ -84,7 +89,8 @@ export default function Scan() {
         if (!cameraRef.current) return;
         const photo = await cameraRef.current.takePictureAsync();
         if (!photo) return;
-        setCapturedPhoto(photo);
+        const cropped = await cropToViewfinder(photo);
+        setCapturedPhoto(cropped);
         setPreviewModalVisible(true);
     };
 
@@ -127,6 +133,32 @@ export default function Scan() {
         }
         const scanned_bill = parseBill(imgList);
         router.push({ pathname: "/manual", params: { temp_bill: JSON.stringify(scanned_bill) } });
+    };
+
+    const cropToViewfinder = async (photo: { uri: string; width: number; height: number }) => {
+        const viewfinderTop = insets.top + 80;
+        const viewfinderLeft = SCREEN_W * 0.10;
+        const viewfinderWidth = SCREEN_W * (1 - 0.10 - 0.10);
+        const viewfinderHeight = SCREEN_H * 0.44;
+
+        // Photo resolution vs screen size ratio
+        const scaleX = photo.width / SCREEN_W;
+        const scaleY = photo.height / SCREEN_H;
+
+        const cropRegion = {
+            originX: viewfinderLeft * scaleX,
+            originY: viewfinderTop * scaleY,
+            width: viewfinderWidth * scaleX,
+            height: viewfinderHeight * scaleY,
+        };
+
+        const cropped = await ImageManipulator.manipulateAsync(
+            photo.uri,
+            [{ crop: cropRegion }],
+            { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+        );
+
+        return { uri: cropped.uri, width: cropped.width, height: cropped.height };
     };
 
     return (
