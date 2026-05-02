@@ -10,6 +10,7 @@ type PaymentMethod = {
 type Person = {
   name: string | null;
   phone: string;
+  oweAmount?: number;
 };
 
 export type SmsResult = {
@@ -68,8 +69,16 @@ export function useSmsReminder() {
           })
           .join("\n");
 
+        // Substitute ${oweAmount} placeholder with this person's amount, the
+        // same way the payment footer is appended — resolved per-person at send time.
+        console.log(JSON.stringify(person))
+        const resolvedBody = opts.messageBody.replace(
+          "${oweAmount}",
+          person.oweAmount != null ? `$${person.oweAmount.toFixed(2)}` : "your share"
+        );
+
         const fullMessage = [
-          opts.messageBody,
+          resolvedBody,
           paymentLines ? `\n— Pay me back —\n${paymentLines}` : "",
         ]
           .filter(Boolean)

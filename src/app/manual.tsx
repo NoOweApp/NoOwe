@@ -21,6 +21,8 @@ type Person = {
     name: string | null;
     phone: string;
     imageUri?: string;
+    settled: boolean;
+    oweAmount: number;
 };
 type Item = {
     name: string;
@@ -103,7 +105,7 @@ export default function Manual() {
                     const profile = JSON.parse(text);
                     const firstName = profile.firstName ?? profile.first_name ?? "";
                     if (firstName) {
-                        setPeople([{ name: firstName, phone: "" }]);
+                        setPeople([{ name: firstName, phone: "", settled: true, oweAmount: 0 }]);
                     }
                 }
             } catch (e) {
@@ -160,7 +162,7 @@ export default function Manual() {
 
         setPeople((prev) => [
             ...prev,
-            { name: manualName.trim() || null, phone: manualPhone.trim() },
+            { name: manualName.trim() || null, phone: manualPhone.trim(), settled: false, oweAmount: 0 },
         ]);
 
         Alert.alert("Success", "Person Added");
@@ -233,7 +235,7 @@ export default function Manual() {
             }
         }
 
-        setPeople((prev) => [...prev, { name: contact.name ?? null, phone, imageUri }]);
+        setPeople((prev) => [...prev, { name: contact.name ?? null, phone, imageUri, settled: false, oweAmount: 0 }]);
     };
 
     const confirmImportContacts = async () => {
@@ -260,6 +262,8 @@ export default function Manual() {
                 name: contact.name ?? null,
                 phone,
                 imageUri,
+                settled: false,
+                oweAmount: 0
             });
         }
 
@@ -348,15 +352,55 @@ export default function Manual() {
     };
 
     const submitBill = async () => {
+        const result = new Map<Person, { cost: number; items: { name: string; percentage: number; cost: number }[] }>();
+
+        for (const item of items) {
+            const { name, cost, owners } = item;
+
+            if (!owners || owners.length === 0)
+                continue;
+
+            const costInCents = Math.round(cost * 100);
+            const splitInCents = Math.floor(costInCents / owners.length);
+            let remainder = costInCents % owners.length;
+
+            for (const owner of owners) {
+                if (!result.has(owner)) {
+                    result.set(owner, { cost: 0, items: [] });
+                }
+
+                let finalCents = splitInCents;
+
+                if (remainder > 0) {
+                    finalCents += 1;
+                    remainder -= 1;
+                }
+
+                const finalCost = finalCents / 100;
+                const entry = result.get(owner)!;
+
+                entry.items.push({
+                    name: name,
+                    percentage: 1 / owners.length,
+                    cost: finalCost,
+                });
+
+                entry.cost = Math.round((entry.cost + finalCost) * 100) / 100;
+            }
+        }
+
         const bill = {
             id: Date.now().toString(),
             dateUploaded: new Date().toISOString().split("T")[0],
             description: "Manual Bill",
             totalAmountPaid: items.reduce((sum, item) => sum + item.cost, 0),
-            people,
+            people: people.map((person) => ({
+                ...person,
+                oweAmount: result.get(person)?.cost ?? 0,
+            })),
             items,
         };
-        // console.log(JSON.stringify(bill, null, 2));
+
         try {
             const folder = new Directory(Paths.document, "NoOwe");
             if (!folder.exists) folder.create();
@@ -374,10 +418,10 @@ export default function Manual() {
             Alert.alert("Bill JSON Created");
             router.push("/dashboard");
         } catch (e: any) {
-            Alert.alert("Error", e.message)
+            Alert.alert("Error", e.message);
         }
     };
-
+    
     const toggleSelectPerson = (person: Person) => {
         if (selectedPeople.includes(person)) {
             setSelectedPeople((prev) => prev.filter((p) => p !== person));
@@ -677,7 +721,7 @@ export default function Manual() {
                 <Button
                     mode="contained"
                     disabled={submitBillGreyedOut}
-                    onPress={async() => await submitBill()}
+                    onPress={async () => await submitBill()}
                     contentStyle={{ paddingVertical: 6 }}
                 >
                     Submit Bill

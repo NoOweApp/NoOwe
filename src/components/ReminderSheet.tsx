@@ -3,23 +3,23 @@ import { SmsResult, useSmsReminder } from "@/src/hooks/useSmsReminder";
 import { Directory, File, Paths } from "expo-file-system/next";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Pressable,
-    TextInput as RNTextInput,
-    ScrollView,
-    View,
+  ActivityIndicator,
+  Image,
+  Pressable,
+  TextInput as RNTextInput,
+  ScrollView,
+  View,
 } from "react-native";
 import {
-    Button,
-    Checkbox,
-    Divider,
-    Icon,
-    Text,
-    useTheme,
+  Button,
+  Checkbox,
+  Divider,
+  Icon,
+  Text,
+  useTheme,
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// Matches settings.tsx exactly
 type PaymentMethod = {
   service: string;
   user: string;
@@ -29,6 +29,8 @@ type Person = {
   name: string | null;
   phone: string;
   imageUri?: string;
+  settled: boolean;
+  oweAmount: number;
 };
 
 type Bill = {
@@ -52,7 +54,7 @@ const SERVICE_LABELS: Record<string, string> = {
 };
 
 function buildDefaultMessage(billDescription: string): string {
-  return `Hey! Just a reminder that you still owe your share for "${billDescription}". Let me know when you've settled up! 🙏`;
+  return 'Hey! Just a reminder that you still owe ${oweAmount} for "' + billDescription + '". Let me know when you\'ve settled up! 🙏';
 }
 
 function loadPaymentMethodsFromDisk(): PaymentMethod[] {
@@ -67,6 +69,47 @@ function loadPaymentMethodsFromDisk(): PaymentMethod[] {
   } catch {
     return [];
   }
+}
+
+function PersonAvatar({
+  imageUri,
+  name,
+  size,
+  bgColor,
+  textColor,
+}: {
+  imageUri?: string;
+  name: string | null;
+  size: number;
+  bgColor: string;
+  textColor: string;
+}) {
+  const [imgFailed, setImgFailed] = React.useState(false);
+  const initial = name ? name[0].toUpperCase() : "?";
+  const fontSize = Math.round(size * 0.38);
+  const showImage = !!imageUri && !imgFailed;
+
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: bgColor,
+      }}
+    >
+      {showImage ? (
+        <Image
+          source={{ uri: imageUri }}
+          style={{ width: size, height: size, position: "absolute", top: 0, left: 0 }}
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        <Text style={{ color: textColor, fontWeight: "700", fontSize }}>{initial}</Text>
+      )}
+    </View>
+  );
 }
 
 type SheetScreen = "compose" | "sending" | "results";
@@ -87,16 +130,34 @@ export function ReminderSheet({ visible, onClose, bill, selectedPeople }: Props)
   });
   const [results, setResults] = useState<SmsResult[]>([]);
 
-  // Reset everything each time the sheet opens
+  // Tracks which unsettled people the user wants to remind.
+  // Defaults to ALL unsettled on open — user can deselect individuals.
+  const [selectedRecipients, setSelectedRecipients] = useState<Person[]>([]);
+
+  const unsettledPeople = selectedPeople.filter((p) => !p.settled);
+  const settledPeople = selectedPeople.filter((p) => p.settled);
+
   useEffect(() => {
     if (visible && bill) {
       setScreen("compose");
       setMessage(buildDefaultMessage(bill.description));
-      setSelectedServices(new Set()); // defaulted to NONE per design doc
+      setSelectedServices(new Set());
       setResults([]);
       setPaymentMethods(loadPaymentMethodsFromDisk());
+      // Pre-select all unsettled people by default
+      setSelectedRecipients(unsettledPeople);
     }
   }, [visible]);
+
+  const toggleRecipient = (person: Person) => {
+    // Settled people cannot be toggled
+    if (person.settled) return;
+    setSelectedRecipients((prev) =>
+      prev.includes(person)
+        ? prev.filter((p) => p !== person)
+        : [...prev, person]
+    );
+  };
 
   const toggleService = (service: string) => {
     setSelectedServices((prev) => {
@@ -107,13 +168,13 @@ export function ReminderSheet({ visible, onClose, bill, selectedPeople }: Props)
   };
 
   const handleSend = async () => {
-    if (!bill || selectedPeople.length === 0) return;
+    if (!bill || selectedRecipients.length === 0) return;
     setScreen("sending");
 
     const chosenMethods = paymentMethods.filter((pm) => selectedServices.has(pm.service));
 
     await sendReminders({
-      people: selectedPeople,
+      people: selectedRecipients,
       billDescription: bill.description,
       messageBody: message,
       selectedPaymentMethods: chosenMethods,
@@ -127,7 +188,10 @@ export function ReminderSheet({ visible, onClose, bill, selectedPeople }: Props)
     });
   };
 
-  const canSend = selectedPeople.length > 0 && message.trim().length > 0;
+  const canSend = selectedRecipients.length > 0 && message.trim().length > 0;
+
+  // Render unsettled first (selectable), settled at the bottom (locked/greyed)
+  const sortedPeople = [...unsettledPeople, ...settledPeople];
 
   return (
     <BottomSheet visible={visible} onClose={screen === "sending" ? () => {} : onClose}>
@@ -167,38 +231,122 @@ export function ReminderSheet({ visible, onClose, bill, selectedPeople }: Props)
               variant="bodySmall"
               style={{ color: theme.colors.onSurfaceVariant, marginBottom: 20 }}
             >
-              Sending to {selectedPeople.length}{" "}
-              {selectedPeople.length === 1 ? "person" : "people"}
+              {selectedRecipients.length} of {unsettledPeople.length} selected
             </Text>
 
-            {/* Recipient chips */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ marginBottom: 20 }}
+            {/* ── Selectable people list (matches manual.tsx item assignment style) ── */}
+            <Text
+              variant="labelSmall"
+              style={{
+                color: theme.colors.onSurfaceVariant,
+                textTransform: "uppercase",
+                letterSpacing: 1.1,
+                marginBottom: 10,
+              }}
             >
-              {selectedPeople.map((p, i) => (
-                <View
-                  key={i}
+              Recipients
+            </Text>
+
+            {sortedPeople.map((person, index) => {
+              const isSelected = selectedRecipients.includes(person);
+              const isSettled = person.settled;
+
+              return (
+                <Pressable
+                  key={index}
+                  onPress={() => toggleRecipient(person)}
+                  disabled={isSettled}
                   style={{
-                    backgroundColor: theme.colors.primaryContainer,
-                    borderRadius: 20,
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    marginRight: 8,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    padding: 12,
+                    marginBottom: 8,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: isSettled
+                      ? theme.colors.outlineVariant
+                      : isSelected
+                      ? theme.colors.primary
+                      : theme.colors.outlineVariant,
+                    backgroundColor: isSettled
+                      ? "transparent"
+                      : isSelected
+                      ? theme.colors.primaryContainer
+                      : "transparent",
+                    opacity: isSettled ? 0.38 : 1,
                   }}
                 >
-                  <Text
-                    variant="labelMedium"
-                    style={{ color: theme.colors.onPrimaryContainer }}
+                  {/* Avatar */}
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      marginRight: 12,
+                      overflow: "hidden",
+                    }}
                   >
-                    {p.name ?? p.phone}
-                  </Text>
-                </View>
-              ))}
-            </ScrollView>
+                    <PersonAvatar
+                      imageUri={person.imageUri}
+                      name={person.name}
+                      size={38}
+                      bgColor={
+                        isSettled
+                          ? theme.colors.surfaceVariant
+                          : isSelected
+                          ? theme.colors.primary
+                          : theme.colors.surfaceVariant
+                      }
+                      textColor={
+                        isSelected && !isSettled
+                          ? theme.colors.onPrimary
+                          : theme.colors.onSurfaceVariant
+                      }
+                    />
+                  </View>
 
-            <Divider style={{ marginBottom: 16 }} />
+                  {/* Name + phone */}
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      variant="bodyMedium"
+                      style={{ color: theme.colors.onSurface, fontWeight: "600" }}
+                    >
+                      {person.name ?? "No Name"}
+                    </Text>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      {isSettled ? "Settled up ✓" : person.phone}
+                    </Text>
+                  </View>
+
+                  {/* Checkmark — only for selected unsettled */}
+                  {isSelected && !isSettled && (
+                    <View
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        backgroundColor: theme.colors.primary,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: theme.colors.onPrimary,
+                          fontSize: 13,
+                          fontWeight: "800",
+                          lineHeight: 16,
+                        }}
+                      >
+                        ✓
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+
+            <Divider style={{ marginTop: 4, marginBottom: 20 }} />
 
             {/* Message editor */}
             <Text
@@ -230,7 +378,7 @@ export function ReminderSheet({ visible, onClose, bill, selectedPeople }: Props)
               placeholderTextColor={theme.colors.onSurfaceVariant}
             />
 
-            {/* Payment method toggles — loaded from settings */}
+            {/* Payment method toggles */}
             {paymentMethods.length > 0 && (
               <>
                 <Text
@@ -266,10 +414,7 @@ export function ReminderSheet({ visible, onClose, bill, selectedPeople }: Props)
                       >
                         {SERVICE_LABELS[pm.service] ?? pm.service}
                       </Text>
-                      <Text
-                        variant="bodySmall"
-                        style={{ color: theme.colors.onSurfaceVariant }}
-                      >
+                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                         {pm.user}
                       </Text>
                     </View>
@@ -286,8 +431,8 @@ export function ReminderSheet({ visible, onClose, bill, selectedPeople }: Props)
               contentStyle={{ paddingVertical: 4 }}
               style={{ marginBottom: 10 }}
             >
-              Send {selectedPeople.length} Reminder
-              {selectedPeople.length !== 1 ? "s" : ""}
+              Send {selectedRecipients.length} Reminder
+              {selectedRecipients.length !== 1 ? "s" : ""}
             </Button>
             <Button onPress={onClose} textColor={theme.colors.onSurfaceVariant}>
               Cancel
@@ -295,7 +440,7 @@ export function ReminderSheet({ visible, onClose, bill, selectedPeople }: Props)
           </ScrollView>
         )}
 
-        {/* ─── SENDING (progress) ─── */}
+        {/* ─── SENDING ─── */}
         {screen === "sending" && (
           <View style={{ alignItems: "center", paddingVertical: 48 }}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -355,10 +500,7 @@ export function ReminderSheet({ visible, onClose, bill, selectedPeople }: Props)
                       >
                         {r.person.name ?? r.person.phone}
                       </Text>
-                      <Text
-                        variant="bodySmall"
-                        style={{ color: theme.colors.onSurfaceVariant }}
-                      >
+                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                         {r.result === "sent"
                           ? "Reminder sent"
                           : r.result === "cancelled"
