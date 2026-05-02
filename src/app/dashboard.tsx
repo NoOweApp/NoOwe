@@ -16,6 +16,7 @@ type Person = {
   name: string | null;
   phone: string;
   imageUri?: string;
+  settled: boolean;
 };
 
 type BillItem = {
@@ -80,12 +81,10 @@ export default function Dashboard() {
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
 
-  // Stashed separately so ReminderSheet has data after selectedBill is cleared
   const [reminderSheetVisible, setReminderSheetVisible] = useState(false);
   const [reminderPeople, setReminderPeople] = useState<Person[]>([]);
   const [reminderBill, setReminderBill] = useState<ReminderBill | null>(null);
 
-  // Reload bills every time the screen comes into focus
   useFocusEffect(
     useCallback(() => {
       const loadBills = async () => {
@@ -95,7 +94,6 @@ export default function Dashboard() {
           if (billsFile.exists) {
             const text = await billsFile.text();
             const parsed: Bill[] = JSON.parse(text);
-            // Most recent first
             setBills([...parsed].reverse());
           } else {
             setBills([]);
@@ -112,22 +110,41 @@ export default function Dashboard() {
   const openBillModal = (bill: Bill) => setSelectedBill(bill);
   const closeBillModal = () => setSelectedBill(null);
 
-  // Stash bill data, close the details sheet, then wait for its slide-out
-  // animation to finish (300ms) before opening the reminder sheet.
-  // This prevents two iOS Modals from being mounted simultaneously.
+  const togglePersonSettled = (personIndex: number) => {
+    if (!selectedBill) return;
+    if (personIndex === 0) return; // owner cannot be toggled
+    const updatedPeople = selectedBill.people.map((p, i) =>
+      i === personIndex ? { ...p, settled: !p.settled } : p
+    );
+    const updatedBill = { ...selectedBill, people: updatedPeople };
+    setSelectedBill(updatedBill);
+
+    // Persist — bills are stored oldest-first (reversed for display)
+    const updatedBills = bills.map((b) => (b.id === updatedBill.id ? updatedBill : b));
+    setBills(updatedBills);
+    try {
+      const folder = new Directory(Paths.document, "NoOwe");
+      const billsFile = new File(folder, "bills.json");
+      billsFile.write(JSON.stringify([...updatedBills].reverse()));
+    } catch (e) {
+      console.error("Failed to persist settled state", e);
+    }
+  };
+
   const openReminderSheet = () => {
-    const people = selectedBill?.people ?? [];
+    // Only unsettled people get reminders
+    const unsettledPeople = (selectedBill?.people ?? []).filter((p) => !p.settled);
     const bill: ReminderBill | null = selectedBill
       ? { description: selectedBill.description, totalAmountPaid: selectedBill.totalAmountPaid }
       : null;
 
-    setReminderPeople(people);
+    setReminderPeople(unsettledPeople);
     setReminderBill(bill);
-    setSelectedBill(null); // starts the BottomSheet slide-out animation (~260ms)
+    setSelectedBill(null);
 
     setTimeout(() => {
       setReminderSheetVisible(true);
-    }, 320); // just past the slide-out duration so the first Modal is fully gone
+    }, 320);
   };
 
   return (
@@ -194,10 +211,7 @@ export default function Dashboard() {
               >
                 Outstanding
               </Text>
-              <Text
-                variant="headlineLarge"
-                style={{ color: "white", fontWeight: "800" }}
-              >
+              <Text variant="headlineLarge" style={{ color: "white", fontWeight: "800" }}>
                 ${totalAmount.toFixed(2)}
               </Text>
               <Text
@@ -235,7 +249,6 @@ export default function Dashboard() {
           Recent Bills
         </Text>
 
-        {/* Empty state */}
         {bills.length === 0 ? (
           <View style={{ alignItems: "center", paddingVertical: 64 }}>
             <Icon source="receipt-outline" color={theme.colors.onSurfaceVariant} size={52} />
@@ -269,7 +282,6 @@ export default function Dashboard() {
                   overflow: "hidden",
                 }}
               >
-                {/* Accent stripe */}
                 <View style={{ width: 4, backgroundColor: theme.colors.primary }} />
                 <View style={{ flex: 1, paddingVertical: 16, paddingHorizontal: 16 }}>
                   <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -425,10 +437,7 @@ export default function Dashboard() {
       </BottomSheet>
 
       {/* Bill Details — bottom sheet */}
-      <BottomSheet
-        visible={selectedBill !== null}
-        onClose={closeBillModal}
-      >
+      <BottomSheet visible={selectedBill !== null} onClose={closeBillModal}>
         <View
           style={{
             backgroundColor: theme.colors.surface,
@@ -439,116 +448,149 @@ export default function Dashboard() {
             paddingBottom: insets.bottom + 28,
           }}
         >
-          {selectedBill && (
-            <>
-              <View
-                style={{
-                  width: 40,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: theme.colors.outlineVariant,
-                  alignSelf: "center",
-                  marginBottom: 22,
-                }}
-              />
+          {selectedBill && (() => {
+            const unsettledCount = selectedBill.people.filter((p) => !p.settled).length;
+            // Preserve original order
+            const sortedPeople = selectedBill.people;
+            return (
+              <>
+                <View
+                  style={{
+                    width: 40,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: theme.colors.outlineVariant,
+                    alignSelf: "center",
+                    marginBottom: 22,
+                  }}
+                />
 
-              {/* Title + amount */}
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  marginBottom: 4,
-                }}
-              >
-                <View style={{ flex: 1, marginRight: 12 }}>
-                  <Text
-                    variant="headlineSmall"
-                    style={{ color: theme.colors.onSurface, fontWeight: "700" }}
-                  >
-                    {selectedBill.description}
-                  </Text>
-                  <Text
-                    variant="bodySmall"
-                    style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}
-                  >
-                    {selectedBill.dateUploaded}
-                  </Text>
-                </View>
-                <Text
-                  variant="headlineMedium"
-                  style={{ color: theme.colors.primary, fontWeight: "800" }}
+                {/* Title + amount */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    marginBottom: 4,
+                  }}
                 >
-                  ${selectedBill.totalAmountPaid.toFixed(2)}
-                </Text>
-              </View>
-
-              <Divider style={{ marginVertical: 18 }} />
-
-              <Text
-                variant="labelSmall"
-                style={{
-                  color: theme.colors.onSurfaceVariant,
-                  textTransform: "uppercase",
-                  letterSpacing: 1.2,
-                  marginBottom: 14,
-                }}
-              >
-                People ({selectedBill.people.length})
-              </Text>
-
-              {/* People avatar chips */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ marginBottom: 24 }}
-              >
-                {selectedBill.people.map((person, index) => (
-                  <View key={index} style={{ alignItems: "center", marginRight: 16 }}>
-                    <View
-                      style={{
-                        width: 46,
-                        height: 46,
-                        borderRadius: 23,
-                        overflow: "hidden",
-                      }}
-                    >
-                      <PersonAvatar
-                        imageUri={person.imageUri}
-                        name={person.name}
-                        size={46}
-                        bgColor={theme.colors.primaryContainer}
-                        textColor={theme.colors.primary}
-                      />
-                    </View>
+                  <View style={{ flex: 1, marginRight: 12 }}>
                     <Text
-                      variant="labelSmall"
-                      style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}
-                      numberOfLines={1}
+                      variant="headlineSmall"
+                      style={{ color: theme.colors.onSurface, fontWeight: "700" }}
                     >
-                      {person.name ?? "Unknown"}
+                      {selectedBill.description}
+                    </Text>
+                    <Text
+                      variant="bodySmall"
+                      style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}
+                    >
+                      {selectedBill.dateUploaded}
                     </Text>
                   </View>
-                ))}
-              </ScrollView>
+                  <Text
+                    variant="headlineMedium"
+                    style={{ color: theme.colors.primary, fontWeight: "800" }}
+                  >
+                    ${selectedBill.totalAmountPaid.toFixed(2)}
+                  </Text>
+                </View>
 
-              <Button
-                mode="contained"
-                onPress={openReminderSheet}
-                style={{ marginBottom: 10 }}
-                contentStyle={{ paddingVertical: 4 }}
-              >
-                Send Reminder
-              </Button>
-              <Button
-                mode="outlined"
-                textColor={theme.colors.error}
-                onPress={() => console.log("Delete bill pressed")}
-              >
-                Delete Bill
-              </Button>
-            </>
-          )}
+                <Divider style={{ marginVertical: 18 }} />
+
+                <Text
+                  variant="labelSmall"
+                  style={{
+                    color: theme.colors.onSurfaceVariant,
+                    textTransform: "uppercase",
+                    letterSpacing: 1.2,
+                    marginBottom: 14,
+                  }}
+                >
+                  People ({selectedBill.people.length})
+                </Text>
+
+                {/* People rows — tappable to toggle settled */}
+                <ScrollView style={{ maxHeight: 240, marginBottom: 24 }} showsVerticalScrollIndicator={false}>
+                  {sortedPeople.map((person, sortedIndex) => {
+                    // Map back to original index for toggling
+                    const originalIndex = selectedBill.people.indexOf(person);
+                    const isOwner = originalIndex === 0;
+                    return (
+                      <Pressable
+                        key={sortedIndex}
+                        onPress={() => togglePersonSettled(originalIndex)}
+                        disabled={isOwner}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          padding: 12,
+                          marginBottom: 8,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: isOwner ? "transparent" : (!person.settled ? theme.colors.primary : theme.colors.outlineVariant),
+                          backgroundColor: !person.settled && !isOwner
+                            ? theme.colors.primaryContainer
+                            : "transparent",
+                        }}
+                      >
+                        {/* Avatar — colors never change */}
+                        <View style={{ width: 42, height: 42, borderRadius: 21, overflow: "hidden", marginRight: 14 }}>
+                          <PersonAvatar
+                            imageUri={person.imageUri}
+                            name={person.name}
+                            size={42}
+                            bgColor={theme.colors.primaryContainer}
+                            textColor={theme.colors.primary}
+                          />
+                        </View>
+
+                        {/* Name + status */}
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            variant="bodyMedium"
+                            style={{
+                              color: person.settled ? theme.colors.outline : theme.colors.onPrimaryContainer,
+                              fontWeight: "600",
+                              textDecorationLine: person.settled ? "line-through" : "none",
+                            }}
+                          >
+                            {person.name ?? "Unknown"}
+                            {isOwner ? "  (you)" : ""}
+                          </Text>
+                          <Text variant="bodySmall" style={{ color: person.settled ? theme.colors.outline : theme.colors.onPrimaryContainer }}>
+                            {person.settled ? "Settled ✓" : `Owes $${person.oweAmount?.toFixed(2) ?? "—"}`}
+                          </Text>
+                        </View>
+
+
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+
+                {/* Button disabled and shows count of who will receive reminders */}
+                <Button
+                  mode="contained"
+                  onPress={openReminderSheet}
+                  disabled={unsettledCount === 0}
+                  style={{ marginBottom: 10 }}
+                  contentStyle={{ paddingVertical: 4 }}
+                >
+                  {unsettledCount === 0
+                    ? "Everyone Settled Up 🎉"
+                    : `Send Reminder${unsettledCount !== 1 ? "s" : ""} (${unsettledCount})`}
+                </Button>
+                <Button
+                  mode="outlined"
+                  textColor={theme.colors.error}
+                  onPress={() => console.log("Delete bill pressed")}
+                >
+                  Delete Bill
+                </Button>
+              </>
+            );
+          })()}
         </View>
       </BottomSheet>
 
