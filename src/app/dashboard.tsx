@@ -106,7 +106,14 @@ export default function Dashboard() {
     }, [])
   );
 
-  const totalAmount = bills.reduce((sum, b) => sum + b.totalAmountPaid, 0);
+  const totalAmount = bills.reduce(
+    (sum, b) =>
+      sum +
+      b.people
+        .filter((_, i) => i !== 0 && !b.people[i].settled)
+        .reduce((pSum, p) => pSum + (p.oweAmount ?? 0), 0),
+    0
+  );
   const openBillModal = (bill: Bill) => setSelectedBill(bill);
   const closeBillModal = () => setSelectedBill(null);
 
@@ -282,47 +289,63 @@ export default function Dashboard() {
             </Text>
           </View>
         ) : (
-          bills.map((bill) => (
-            <Pressable
-              key={bill.id}
-              onPress={() => openBillModal(bill)}
-              style={{ marginBottom: 12 }}
-            >
-              <View
-                style={{
-                  backgroundColor: theme.colors.surface,
-                  borderRadius: 16,
-                  flexDirection: "row",
-                  overflow: "hidden",
-                }}
+          bills.map((bill) => {
+            const billOutstanding = bill.people
+              .filter((p, i) => i !== 0 && !p.settled)
+              .reduce((sum, p) => sum + (p.oweAmount ?? 0), 0);
+            return (
+              <Pressable
+                key={bill.id}
+                onPress={() => openBillModal(bill)}
+                style={{ marginBottom: 12 }}
               >
-                <View style={{ width: 4, backgroundColor: theme.colors.primary }} />
-                <View style={{ flex: 1, paddingVertical: 16, paddingHorizontal: 16 }}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <View
+                  style={{
+                    backgroundColor: theme.colors.surface,
+                    borderRadius: 16,
+                    flexDirection: "row",
+                    overflow: "hidden",
+                  }}
+                >
+                  <View style={{ width: 4, backgroundColor: theme.colors.primary }} />
+                  <View style={{ flex: 1, paddingVertical: 16, paddingHorizontal: 16 }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <Text
+                        variant="titleMedium"
+                        style={{ color: theme.colors.onSurface, fontWeight: "700", flex: 1, marginRight: 8 }}
+                      >
+                        {bill.description}
+                      </Text>
+                      <View style={{ alignItems: "flex-end" }}>
+                        <Text
+                          variant="titleMedium"
+                          style={{ color: theme.colors.primary, fontWeight: "800" }}
+                        >
+                          ${bill.totalAmountPaid.toFixed(2)}
+                        </Text>
+                        {billOutstanding > 0 ? (
+                          <Text style={{ color: theme.colors.error, fontWeight: "600", marginTop: 2, fontSize: 11 }}>
+                            ${billOutstanding.toFixed(2)} owed
+                          </Text>
+                        ) : (
+                          <Text variant="bodySmall" style={{ color: theme.colors.primary, fontWeight: "600", marginTop: 2 }}>
+                            Settled ✓
+                          </Text>
+                        )}
+                      </View>
+                    </View>
                     <Text
-                      variant="titleMedium"
-                      style={{ color: theme.colors.onSurface, fontWeight: "700", flex: 1, marginRight: 8 }}
+                      variant="bodySmall"
+                      style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}
                     >
-                      {bill.description}
-                    </Text>
-                    <Text
-                      variant="titleMedium"
-                      style={{ color: theme.colors.primary, fontWeight: "800" }}
-                    >
-                      ${bill.totalAmountPaid.toFixed(2)}
+                      {bill.dateUploaded} · {bill.people.length}{" "}
+                      {bill.people.length === 1 ? "person" : "people"}
                     </Text>
                   </View>
-                  <Text
-                    variant="bodySmall"
-                    style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}
-                  >
-                    {bill.dateUploaded} · {bill.people.length}{" "}
-                    {bill.people.length === 1 ? "person" : "people"}
-                  </Text>
                 </View>
-              </View>
-            </Pressable>
-          ))
+              </Pressable>
+            );
+          })
         )}
       </ScrollView>
 
