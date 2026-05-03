@@ -8,6 +8,7 @@ import {
   Checkbox,
   Divider,
   HelperText,
+  IconButton,
   Menu,
   Text,
   TextInput,
@@ -185,7 +186,7 @@ export default function SettingsScreen() {
       settingsJson.write(JSON.stringify(profile, null, 2));
       setInitialProfileString(JSON.stringify(profile, null, 2));
       Alert.alert("Success", "Your settings were updated successfully.", [
-        { text: "OK", onPress: () => router.push("/dashboard") },
+        { text: "OK", onPress: () => router.back() },
       ]);
     } catch (e: any) {
       setError(e.message || "Failed to save settings.");
@@ -199,12 +200,12 @@ export default function SettingsScreen() {
         "You have unsaved changes. If you leave now, they will be lost.",
         [
           { text: "Stay", style: "cancel" },
-          { text: "Leave", style: "destructive", onPress: () => router.push("/dashboard") },
+          { text: "Leave", style: "destructive", onPress: () => router.back() },
         ]
       );
       return;
     }
-    router.push("/dashboard");
+    router.back();
   };
 
   const initials =
@@ -216,17 +217,41 @@ export default function SettingsScreen() {
   const displayName = [firstName, lastName].filter(Boolean).join(" ") || "Your Profile";
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.background }}
-      contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      {/* Fixed header */}
+      <View
+        style={{
+          paddingTop: insets.top + 8,
+          paddingHorizontal: 8,
+          paddingBottom: 8,
+          flexDirection: "row",
+          alignItems: "center",
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.outlineVariant,
+        }}
+      >
+        <IconButton
+          icon="arrow-left"
+          size={22}
+          iconColor={theme.colors.onSurfaceVariant}
+          onPress={handleBack}
+        />
+        <Text variant="titleLarge" style={{ color: theme.colors.onBackground, fontWeight: "700" }}>
+          Settings
+        </Text>
+      </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       {/* Profile avatar header */}
       <View
         style={{
           alignItems: "center",
-          paddingTop: insets.top + 24,
+          paddingTop: 24,
           paddingBottom: 32,
           backgroundColor: theme.colors.surface,
           borderBottomLeftRadius: 28,
@@ -400,14 +425,9 @@ export default function SettingsScreen() {
             paddingVertical: 8,
           }}
         >
-          <View>
-            <Text variant="bodyLarge" style={{ color: theme.colors.onBackground, fontWeight: "600" }}>
-              Light Mode
-            </Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              {mode === "light" ? "Using logo green" : "Using logo blue"}
-            </Text>
-          </View>
+          <Text variant="bodyLarge" style={{ color: theme.colors.onBackground, fontWeight: "600" }}>
+            {mode === "light" ? "Light Mode" : "Dark Mode"}
+          </Text>
           <Switch
             value={mode === "light"}
             onValueChange={toggleMode}
@@ -418,24 +438,14 @@ export default function SettingsScreen() {
 
         {/* Actions */}
         <View style={{ marginTop: 28, gap: 10 }}>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Button
-              mode="outlined"
-              onPress={handleBack}
-              style={{ flex: 1 }}
-            >
-              Back
-            </Button>
-            <Button
-              mode="contained"
-              onPress={handleSave}
-              disabled={saveGreyedOut}
-              style={{ flex: 1 }}
-              contentStyle={{ paddingVertical: 4 }}
-            >
-              Save
-            </Button>
-          </View>
+          <Button
+            mode="contained"
+            onPress={handleSave}
+            disabled={saveGreyedOut}
+            contentStyle={{ paddingVertical: 4 }}
+          >
+            Save
+          </Button>
 
           <Divider style={{ marginVertical: 8 }} />
 
@@ -454,6 +464,7 @@ export default function SettingsScreen() {
           </Button>
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }

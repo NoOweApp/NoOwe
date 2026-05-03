@@ -480,7 +480,7 @@ export function ReminderSheet({ visible, onClose, bill, selectedPeople }: Props)
             >
               Done!
             </Text>
-            <ScrollView style={{ maxHeight: 300, marginBottom: 20 }}>
+            <ScrollView style={{ maxHeight: 300, marginBottom: 20 }} contentContainerStyle={{ paddingBottom: 14 }}>
               {results.map((r, i) => {
                 const sent = r.result === "sent";
                 return (
