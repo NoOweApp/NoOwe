@@ -5,7 +5,7 @@ import { Directory, File, Paths } from "expo-file-system/next";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { BillConfirmationModal } from "@/src/components/BillConfirmationModal";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -221,6 +221,7 @@ export default function Manual() {
   const [tax, setTax] = useState("");
   const [tip, setTip] = useState("");
   const [taxTipError, setTaxTipError] = useState("");
+  const mainScrollRef = useRef<ScrollView>(null);
 
   const loadContacts = async () => {
     setContactsLoading(true);
@@ -598,7 +599,7 @@ const submitBill = async () => {
 
   return (
     <KeyboardAvoidingView
-    style={{ flex: 1 }}
+    style={{ flex: 1, backgroundColor: theme.colors.background }}
     behavior={Platform.OS === "ios" ? "padding" : "height"}
 >
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -651,6 +652,7 @@ const submitBill = async () => {
 
       {/* Scrollable content */}
       <ScrollView
+        ref={mainScrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
@@ -929,27 +931,27 @@ const submitBill = async () => {
         </View>
 
         
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12, paddingHorizontal: 4 , paddingTop: 15}}>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, fontWeight: "600" }}>Tax:</Text>
+        <View style={{ flexDirection: "row", gap: 12, marginTop: 20, paddingHorizontal: 4 }}>
             <TextInput
+                label="Tax ($)"
                 value={tax}
                 onChangeText={(val) => { setTax(val); setTaxTipError(""); }}
+                onFocus={() => mainScrollRef.current?.scrollToEnd({ animated: false })}
                 keyboardType="decimal-pad"
-                placeholder="$0.00"
                 mode="outlined"
                 dense
-                style={{ flex: 1, borderRadius: 50 }}
+                style={{ flex: 1, backgroundColor: theme.colors.surfaceVariant }}
                 outlineStyle={{ borderRadius: 50 }}
             />
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, fontWeight: "600" }}>Tip:</Text>
             <TextInput
+                label="Tip ($)"
                 value={tip}
                 onChangeText={(val) => { setTip(val); setTaxTipError(""); }}
+                onFocus={() => mainScrollRef.current?.scrollToEnd({ animated: false })}
                 keyboardType="decimal-pad"
-                placeholder="$0.00"
                 mode="outlined"
                 dense
-                style={{ flex: 1, borderRadius: 50 }}
+                style={{ flex: 1, backgroundColor: theme.colors.surfaceVariant }}
                 outlineStyle={{ borderRadius: 50 }}
             />
         </View>
