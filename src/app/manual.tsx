@@ -424,11 +424,11 @@ export default function Manual() {
   const buildConfirmedPeople = () => {
     const result = new Map<Person, number>();
 
-    for (const item of items) {
-        const { cost, owners } = item;
+    for (const item of items) { //loop through all items
+        const { cost, owners } = item; //destructure each item into its cost and its owners
         if (!owners || owners.length === 0) continue;
-        const costInCents = Math.round(cost * 100);
-        const splitInCents = Math.floor(costInCents / owners.length);
+        const costInCents = Math.round(cost * 100); 
+        const splitInCents = Math.floor(costInCents / owners.length); 
         let remainder = costInCents % owners.length;
         for (const owner of owners) {
             let finalCents = splitInCents;
@@ -981,10 +981,10 @@ const submitBill = async () => {
             if (submitBillGreyedOut) setSubmitBillError(getSubmitBillError());
           }}
         >
-        <Button
+        <Button {/*On manual entry submit, it opens the modal and populates it with the confirmed people*/}
             mode="contained"
             disabled={submitBillGreyedOut}
-            onPress={() => {
+            onPress={() => { 
                 setConfirmedPeople(buildConfirmedPeople());
                 setConfirmationModalVisible(true);
             }}
@@ -1581,7 +1581,8 @@ const submitBill = async () => {
         </Pressable>
       </BottomSheet>
 
-      <BillConfirmationModal
+    {/*Showing the bill cofnriamtion modal*/}
+    <BillConfirmationModal
     visible={confirmationModalVisible}
     onClose={() => setConfirmationModalVisible(false)}
     onConfirm={async () => {
