@@ -469,7 +469,7 @@ export default function Manual() {
                         icon="arrow-left"
                         size={22}
                         iconColor={theme.colors.onSurfaceVariant}
-                        onPress={() => router.push("/dashboard")}
+                        onPress={() => router.back()}
                     />
                     <Text variant="titleLarge" style={{ color: theme.colors.onBackground, fontWeight: "700" }}>
                         Manual Entry

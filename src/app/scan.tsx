@@ -77,7 +77,7 @@ export default function Scan() {
                 </Button>
                 <Button
                     mode="outlined"
-                    onPress={() => router.push("/dashboard")}
+                    onPress={() => router.back()}
                     style={{ marginTop: 12 }}
                 >
                     Go Back
@@ -188,7 +188,7 @@ export default function Scan() {
                     icon="arrow-left"
                     iconColor="white"
                     size={22}
-                    onPress={() => router.push("/dashboard")}
+                    onPress={() => router.back()}
                 />
                 <View style={{ flex: 1 }} />
                 {imgList.length > 0 && (
