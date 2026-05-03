@@ -981,7 +981,8 @@ const submitBill = async () => {
             if (submitBillGreyedOut) setSubmitBillError(getSubmitBillError());
           }}
         >
-        <Button {/*On manual entry submit, it opens the modal and populates it with the confirmed people*/}
+        {/* On manual entry submit, it opens the modal and populates it with the confirmed people */}
+        <Button
             mode="contained"
             disabled={submitBillGreyedOut}
             onPress={() => { 
