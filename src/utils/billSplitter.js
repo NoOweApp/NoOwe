@@ -12,8 +12,8 @@ function splitBill(items) {
         let remainder = costInCents % owners.length;
 
         for (const owner of owners) {
-            if (!result[owner]) {
-                result[owner] = {
+            if (!result[owner.phone]) {
+                result[owner.phone] = {
                     owner: owner,
                     cost: 0,
                     items: []
@@ -29,13 +29,13 @@ function splitBill(items) {
 
             const finalCost = finalCents / 100;
 
-            result[owner].items.push({
+            result[owner.phone].items.push({
                 name: name,
                 percentage: 1 / owners.length,
                 cost: finalCost
             });
 
-            result[owner].cost = Math.round((result[owner].cost + finalCost) * 100) / 100;
+            result[owner.phone].cost = Math.round((result[owner.phone].cost + finalCost) * 100) / 100;
         }
     }
 
@@ -102,3 +102,4 @@ function splitTax(result, expenses) {
 }
 
 export { splitBill, splitTax };
+
