@@ -400,14 +400,9 @@ export default function SettingsScreen() {
             paddingVertical: 8,
           }}
         >
-          <View>
-            <Text variant="bodyLarge" style={{ color: theme.colors.onBackground, fontWeight: "600" }}>
-              Light Mode
-            </Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              {mode === "light" ? "Using logo green" : "Using logo blue"}
-            </Text>
-          </View>
+          <Text variant="bodyLarge" style={{ color: theme.colors.onBackground, fontWeight: "600" }}>
+            {mode === "light" ? "Light Mode" : "Dark Mode"}
+          </Text>
           <Switch
             value={mode === "light"}
             onValueChange={toggleMode}

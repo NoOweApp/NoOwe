@@ -840,9 +840,11 @@ export default function Manual() {
                                                     <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, fontWeight: "600" }}>
                                                         {person.name ?? "No Name"}
                                                     </Text>
-                                                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                                                        {person.phone}
-                                                    </Text>
+                                                    {person.phone ? (
+                                                        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                                                            {person.phone}
+                                                        </Text>
+                                                    ) : null}
                                                 </View>
                                                 {personSelected && (
                                                     <View
