@@ -33,6 +33,7 @@ export default function Scan() {
     const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
     const [galleryModalVisible, setGalleryModalVisible] = useState<boolean>(false);
+    const [expandedPhoto, setExpandedPhoto] = useState<{ uri: string; width: number; height: number } | null>(null);
 
     const pinchGesture = Gesture.Pinch()
         .onStart(() => {
@@ -445,9 +446,13 @@ export default function Scan() {
                     ) : (
                         <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                             {imgList.map((img, index) => {
-                                const size = (SCREEN_W - 32 - 16) / 3; // 3 columns
+                                const size = (SCREEN_W - 32 - 16) / 2;
                                 return (
-                                    <View key={index} style={{ width: size, height: size }}>
+                                    <TouchableOpacity
+                                        key={index}
+                                        onPress={() => setExpandedPhoto(img)}
+                                        style={{ width: size, height: size }}
+                                    >
                                         <Image
                                             source={{ uri: img.uri }}
                                             style={{ width: '100%', height: '100%', borderRadius: 10 }}
@@ -464,7 +469,7 @@ export default function Scan() {
                                         >
                                             <Icon source="close-circle" color={theme.colors.error} size={24} />
                                         </TouchableOpacity>
-                                    </View>
+                                    </TouchableOpacity>
                                 );
                             })}
                         </ScrollView>
@@ -478,6 +483,39 @@ export default function Scan() {
                     >
                         Done
                     </Button>
+                    <Modal visible={!!expandedPhoto} animationType="fade" transparent>
+                        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', paddingTop: insets.top + 16, paddingBottom: insets.bottom + 20, paddingHorizontal: 20 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+                                <Text variant="titleLarge" style={{ color: 'white', fontWeight: '700', flex: 1 }}>
+                                    Preview
+                                </Text>
+                                <IconButton
+                                    icon="close"
+                                    iconColor="white"
+                                    size={22}
+                                    onPress={() => setExpandedPhoto(null)}
+                                />
+                            </View>
+
+                            {expandedPhoto && (
+                                <Image
+                                    source={{ uri: expandedPhoto.uri }}
+                                    style={{ flex: 1, borderRadius: 16, resizeMode: 'contain', marginBottom: 24 }}
+                                />
+                            )}
+
+                            <Button
+                                mode="outlined"
+                                textColor={theme.colors.error}
+                                onPress={() => {
+                                    setImgList(cur => cur.filter(img => img.uri !== expandedPhoto?.uri));
+                                    setExpandedPhoto(null);
+                                }}
+                            >
+                                Remove Photo
+                            </Button>
+                        </View>
+                    </Modal>
                 </View>
             </Modal>
         </View>
