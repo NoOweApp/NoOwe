@@ -131,6 +131,20 @@ export default function Dashboard() {
     }
   };
 
+  const deleteBill = () => {
+    if (!selectedBill) return;
+    const updatedBills = bills.filter((b) => b.id !== selectedBill.id);
+    setBills(updatedBills);
+    try {
+      const folder = new Directory(Paths.document, "NoOwe");
+      const billsFile = new File(folder, "bills.json");
+      billsFile.write(JSON.stringify([...updatedBills].reverse()));
+    } catch (e) {
+      console.error("Failed to delete bill", e);
+    }
+    closeBillModal();
+  };
+
   const openReminderSheet = () => {
     // Only unsettled people get reminders
     const unsettledPeople = (selectedBill?.people ?? []).filter((p) => !p.settled);
@@ -584,7 +598,7 @@ export default function Dashboard() {
                 <Button
                   mode="outlined"
                   textColor={theme.colors.error}
-                  onPress={() => console.log("Delete bill pressed")}
+                  onPress={deleteBill}
                 >
                   Delete Bill
                 </Button>
