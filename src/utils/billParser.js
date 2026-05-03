@@ -8,7 +8,7 @@ async function parseBill(imgList) {
         try {
         const text = await MlkitOcr.recognizeText(img.uri, 'latin');
             rawText += text + "\n\n";
-        } catch (error) {
+        } catch (error) {git
             console.error(`Failed to scan image ${img.uri}:`, error);
         }
     }
