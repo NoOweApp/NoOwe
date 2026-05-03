@@ -571,14 +571,13 @@ export default function Dashboard() {
                             : "transparent",
                         }}
                       >
-                        {/* Avatar — colors never change */}
                         <View style={{ width: 42, height: 42, borderRadius: 21, overflow: "hidden", marginRight: 14 }}>
                           <PersonAvatar
                             imageUri={person.imageUri}
                             name={person.name}
                             size={42}
-                            bgColor={theme.colors.primaryContainer}
-                            textColor={theme.colors.primary}
+                            bgColor={!person.settled && !isOwner ? theme.colors.primary : theme.colors.primaryContainer}
+                            textColor={!person.settled && !isOwner ? theme.colors.onPrimary : theme.colors.primary}
                           />
                         </View>
 
