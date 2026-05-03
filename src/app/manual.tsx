@@ -222,6 +222,15 @@ export default function Manual() {
   const [tip, setTip] = useState("");
   const [taxTipError, setTaxTipError] = useState("");
   const mainScrollRef = useRef<ScrollView>(null);
+  const [kbHeight, setKbHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const show = Keyboard.addListener(showEvent, (e) => setKbHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener(hideEvent, () => setKbHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   const loadContacts = async () => {
     setContactsLoading(true);
@@ -704,7 +713,7 @@ const submitBill = async () => {
                     textColor={theme.colors.primary}
                   />
                 </View>
-                <Pressable
+                {i !== 0 && <Pressable
                   onPress={() => removeContact(i)}
                   style={{
                     position: "absolute",
@@ -728,7 +737,7 @@ const submitBill = async () => {
                   >
                     ×
                   </Text>
-                </Pressable>
+                </Pressable>}
               </View>
               <Text
                 variant="labelSmall"
@@ -1219,9 +1228,9 @@ const submitBill = async () => {
             borderTopRightRadius: 28,
             paddingTop: 12,
             paddingHorizontal: 24,
-            paddingBottom: insets.bottom + 24,
+            paddingBottom: view === "manual" && kbHeight > 0 ? kbHeight + 16 : insets.bottom + 24,
             minHeight: view !== "main" ? "65%" : undefined,
-            maxHeight: "90%",
+            maxHeight: view === "manual" && kbHeight > 0 ? "95%" : "90%",
           }}
         >
           <View
@@ -1371,7 +1380,6 @@ const submitBill = async () => {
                 <View
                   style={{
                     flex: 1,
-                    justifyContent: "center",
                     paddingVertical: 24,
                   }}
                 >
