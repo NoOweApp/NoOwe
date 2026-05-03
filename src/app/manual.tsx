@@ -430,6 +430,8 @@ export default function Manual() {
         }
     };
 
+    const [submitBillError, setSubmitBillError] = useState("");
+
     const runningTotal = items.reduce((sum, item) => sum + item.cost, 0);
     const submitItemGreyedOut =
         itemName.trim().length < 2 || itemName.trim().length > 50 || itemCost.trim() === "";
@@ -438,6 +440,14 @@ export default function Manual() {
         items.length === 0 ||
         items.some((item) => item.owners.length === 0) ||
         people.some((person) => !items.some((item) => item.owners.includes(person)));
+
+    const getSubmitBillError = () => {
+        if (people.length < 2) return "Add at least 2 people to split the bill.";
+        if (items.length === 0) return "Add at least one item.";
+        if (items.some((item) => item.owners.length === 0)) return "All items must have people assigned.";
+        if (people.some((person) => !items.some((item) => item.owners.includes(person)))) return "All people must be assigned to at least one item.";
+        return "";
+    };
 
     return (
         <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -718,14 +728,21 @@ export default function Manual() {
                     backgroundColor: theme.colors.background,
                 }}
             >
-                <Button
-                    mode="contained"
-                    disabled={submitBillGreyedOut}
-                    onPress={async () => await submitBill()}
-                    contentStyle={{ paddingVertical: 6 }}
-                >
-                    Submit Bill
-                </Button>
+                {submitBillError !== "" && (
+                    <HelperText type="error" visible style={{ textAlign: "center", marginBottom: 4 }}>
+                        {submitBillError}
+                    </HelperText>
+                )}
+                <Pressable onPress={() => { if (submitBillGreyedOut) setSubmitBillError(getSubmitBillError()); }}>
+                    <Button
+                        mode="contained"
+                        disabled={submitBillGreyedOut}
+                        onPress={async () => { setSubmitBillError(""); await submitBill(); }}
+                        contentStyle={{ paddingVertical: 6 }}
+                    >
+                        Submit Bill
+                    </Button>
+                </Pressable>
             </View>
 
             {/* ── ITEM MODAL ── */}
@@ -791,11 +808,16 @@ export default function Manual() {
                                         color: theme.colors.onSurfaceVariant,
                                         textTransform: "uppercase",
                                         letterSpacing: 1.2,
-                                        marginBottom: 12,
+                                        marginBottom: selectedPeople.length === 0 ? 4 : 12,
                                     }}
                                 >
                                     Assign People
                                 </Text>
+                                {selectedPeople.length === 0 && (
+                                    <HelperText type="info" visible style={{ marginBottom: 8, marginTop: 0, paddingLeft: 0 }}>
+                                        Select who to split this item with.
+                                    </HelperText>
+                                )}
 
                                 <ScrollView style={{ maxHeight: 200 }} showsVerticalScrollIndicator={false}>
                                     {people.map((person, index) => {
