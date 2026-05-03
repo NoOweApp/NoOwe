@@ -891,7 +891,8 @@ export default function Manual() {
                 visible={peopleModalVisible}
                 onClose={() => { setView("main"); setPeopleModalVisible(false); }}
             >
-                <View
+                <Pressable
+                    onPress={Keyboard.dismiss}
                     style={{
                         backgroundColor: theme.colors.surface,
                         borderTopLeftRadius: 28,
@@ -1175,7 +1176,7 @@ export default function Manual() {
                             )}
                         </>
                     )}
-                </View>
+                </Pressable>
             </BottomSheet>
         </View>
     );
