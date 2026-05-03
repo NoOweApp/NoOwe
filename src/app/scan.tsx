@@ -1,17 +1,42 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as FileSystem from "expo-file-system/legacy";
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
-import { Dimensions, Image, Modal, ScrollView, TouchableOpacity, View } from "react-native";
+import { Alert, Dimensions, Image, Modal, ScrollView, TouchableOpacity, View } from "react-native";
 import { Button, Icon, IconButton, Text, useTheme } from "react-native-paper";
+import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS, useSharedValue } from 'react-native-reanimated';
 
-import * as ImageManipulator from 'expo-image-manipulator';
+import { parseBillText } from "../utils/billParser";
 
-import { parseBill } from "../utils/billParser";
+const TESSERACT_HTML = `<!DOCTYPE html><html><body>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"><\/script>
+<script>
+let _worker = null;
+async function getWorker() {
+  if (!_worker) _worker = await Tesseract.createWorker('eng');
+  return _worker;
+}
+async function handleMessage(e) {
+  var msg;
+  try { msg = JSON.parse(e.data); } catch(_) { return; }
+  if (!msg || !msg.id) return;
+  try {
+    var w = await getWorker();
+    var result = await w.recognize('data:image/jpeg;base64,' + msg.base64);
+    window.ReactNativeWebView.postMessage(JSON.stringify({ id: msg.id, text: result.data.text }));
+  } catch(err) {
+    window.ReactNativeWebView.postMessage(JSON.stringify({ id: msg.id, error: String(err) }));
+  }
+}
+window.addEventListener('message', handleMessage);
+document.addEventListener('message', handleMessage);
+<\/script></body></html>`;
 
 export default function Scan() {
     const router = useRouter();
@@ -29,6 +54,10 @@ export default function Scan() {
     const [zoom, setZoom] = useState<number>(0);
     const zoomRef = useSharedValue(0);
     const lastZoom = useSharedValue(0);
+
+    const webviewRef = useRef<WebView>(null);
+    const ocrCallbacks = useRef<Map<string, (text: string, err?: string) => void>>(new Map());
+    const [isParsing, setIsParsing] = useState<boolean>(false);
 
     const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -98,8 +127,11 @@ export default function Scan() {
 
     const pickFromCameraRoll = async () => {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) {
-            console.log("Permission to access camera roll denied");
+        if (perm.status === 'denied') {
+            Alert.alert(
+                "Photo Access Required",
+                "Please allow photo access in Settings to choose from your camera roll.",
+            );
             return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -128,13 +160,54 @@ export default function Scan() {
         setPreviewModalVisible(false);
     };
 
-    const handleParseBill = () => {
-        if (imgList.length === 0) {
-            console.log("No saved images captured yet");
-            return;
+    const runOCR = (base64: string): Promise<string> =>
+        new Promise((resolve, reject) => {
+            const id = Math.random().toString(36).slice(2);
+            console.log('[OCR] Sending image to WebView, id:', id, 'base64 length:', base64.length);
+            ocrCallbacks.current.set(id, (text, err) => {
+                ocrCallbacks.current.delete(id);
+                if (err) {
+                    console.log('[OCR] WebView returned error:', err);
+                    reject(new Error(err));
+                } else {
+                    console.log('[OCR] WebView returned text:', text);
+                    resolve(text);
+                }
+            });
+            webviewRef.current?.postMessage(JSON.stringify({ id, base64 }));
+            console.log('[OCR] postMessage called, webviewRef.current:', !!webviewRef.current);
+        });
+
+    const handleWebViewMessage = (event: any) => {
+        console.log('[OCR] handleWebViewMessage fired, raw data:', event.nativeEvent.data?.slice(0, 100));
+        const { id, text, error } = JSON.parse(event.nativeEvent.data);
+        ocrCallbacks.current.get(id)?.(text, error);
+    };
+
+    const handleParseBill = async () => {
+        if (imgList.length === 0) return;
+        setIsParsing(true);
+        console.log('[OCR] Parse Bill pressed, imgList length:', imgList.length);
+        try {
+            const texts: string[] = [];
+            for (const img of imgList) {
+                console.log('[OCR] Reading image:', img.uri);
+                const base64 = await FileSystem.readAsStringAsync(img.uri, {
+                    encoding: 'base64',
+                });
+                console.log('[OCR] Image read as base64, length:', base64.length);
+                texts.push(await runOCR(base64));
+            }
+            console.log('[OCR] All texts:', texts);
+            const bill = parseBillText(texts.join('\n'));
+            console.log('[OCR] Parsed bill:', JSON.stringify(bill));
+            router.push({ pathname: "/manual", params: { temp_bill: JSON.stringify(bill) } });
+        } catch (e: any) {
+            Alert.alert("Scan Failed", e?.message ?? String(e));
+            router.push({ pathname: "/manual", params: { temp_bill: "" } });
+        } finally {
+            setIsParsing(false);
         }
-        const scanned_bill = parseBill(imgList);
-        router.push({ pathname: "/manual", params: { temp_bill: JSON.stringify(scanned_bill) } });
     };
 
     const cropToViewfinder = async (photo: { uri: string; width: number; height: number }) => {
@@ -350,10 +423,15 @@ export default function Scan() {
                 <Button
                     mode="outlined"
                     onPress={handleParseBill}
-                    disabled={imgList.length === 0}
+                    disabled={imgList.length === 0 || isParsing}
+                    loading={isParsing}
                     style={{ width: "100%" }}
                 >
-                    {imgList.length > 0 ? `Parse Bill (${imgList.length} photo${imgList.length !== 1 ? "s" : ""})` : "Parse Bill"}
+                    {isParsing
+                        ? "Scanning…"
+                        : imgList.length > 0
+                            ? `Parse Bill (${imgList.length} photo${imgList.length !== 1 ? "s" : ""})`
+                            : "Parse Bill"}
                 </Button>
             </View>
 
@@ -518,6 +596,19 @@ export default function Scan() {
                     </Modal>
                 </View>
             </Modal>
+            <View
+                pointerEvents="none"
+                style={{ position: 'absolute', top: -400, left: -400, width: 300, height: 300 }}
+            >
+                <WebView
+                    ref={webviewRef}
+                    source={{ html: TESSERACT_HTML, baseUrl: '' }}
+                    onMessage={handleWebViewMessage}
+                    javaScriptEnabled
+                    originWhitelist={['*']}
+                    style={{ flex: 1 }}
+                />
+            </View>
         </View>
     );
 }
