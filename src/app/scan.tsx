@@ -128,12 +128,12 @@ export default function Scan() {
         setPreviewModalVisible(false);
     };
 
-    const handleParseBill = () => {
+    const handleParseBill = async () => {
         if (imgList.length === 0) {
             console.log("No saved images captured yet");
             return;
         }
-        const scanned_bill = parseBill(imgList);
+        const scanned_bill = await parseBill(imgList);
         router.push({ pathname: "/manual", params: { temp_bill: JSON.stringify(scanned_bill) } });
     };
 
