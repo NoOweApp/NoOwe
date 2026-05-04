@@ -134,9 +134,7 @@ export default function Scan() {
             return;
         }
         const scanned_bill = await parseBill(imgList);
-        let stringifiedBill = JSON.stringify(scanned_bill)
-        console.log("Stringified Bill: ", stringifiedBill);
-        router.push({ pathname: "/manual", params: { temp_bill: stringifiedBill } });
+        router.push({ pathname: "/manual", params: { temp_bill: JSON.stringify(scanned_bill) } });
     };
 
     const cropToViewfinder = async (photo: { uri: string; width: number; height: number }) => {
