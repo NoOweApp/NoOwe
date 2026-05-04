@@ -18,10 +18,29 @@ async function parseBill(imgList: any) {
   return extractReceiptData(rawText);
 }
 
+function getSkewAngle(elements: OcrElement[]): number {
+  const angles: number[] = [];
+
+  for (let i = 0; i < elements.length - 1; i++) {
+    const a = elements[i];
+    const b = elements[i + 1];
+    const dy =
+      b.frame.y + b.frame.height / 2 - (a.frame.y + a.frame.height / 2);
+    const dx = b.frame.x + b.frame.width / 2 - (a.frame.x + a.frame.width / 2);
+    if (Math.abs(dx) > 20) {
+      angles.push(Math.atan2(dy, dx) * (180 / Math.PI));
+    }
+  }
+
+  if (angles.length === 0) return 0;
+  angles.sort((a, b) => a - b);
+  return angles[Math.floor(angles.length / 2)];
+}
+
 function tabularizeData(resultObject: OcrResult) {
   let result = "";
 
-  let textElements = [];
+  let textElements: OcrElement[] = [];
   for (let i = 0; i < resultObject.blocks.length; i++) {
     let lines = resultObject.blocks[i].lines;
     for (let j = 0; j < lines.length; j++) {
@@ -32,10 +51,14 @@ function tabularizeData(resultObject: OcrResult) {
     }
   }
 
+  const skewAngle = getSkewAngle(textElements);
+  const skewRad = skewAngle * (Math.PI / 180);
+
   textElements.sort(compareElements);
+
   for (let i = 0; i < textElements.length - 1; i++) {
     result += textElements[i].text + " ";
-    if (!isSameLine(textElements[i], textElements[i + 1])) {
+    if (!isSameLine(textElements[i], textElements[i + 1], skewRad)) {
       result += "\n";
     }
   }
@@ -44,10 +67,11 @@ function tabularizeData(resultObject: OcrResult) {
   return result;
 }
 
+
 function compareElements(t1: OcrElement, t2: OcrElement) {
   let diffOfTops =
     t1.frame.y + t1.frame.height - (t2.frame.y + t2.frame.height);
-  let diffOfLefts = t1.frame.x + t1.frame.width - (t2.frame.x + t2.frame.width);
+  let diffOfLefts = t1.frame.x - t2.frame.x;
 
   let height = (t1.frame.height + t2.frame.height) / 2;
   let verticalDiff = height * 0.35;
@@ -59,16 +83,17 @@ function compareElements(t1: OcrElement, t2: OcrElement) {
   return result;
 }
 
-function isSameLine(t1: OcrElement, t2: OcrElement) {
-  let diffOfTops =
-    t1.frame.y + t1.frame.height - (t2.frame.y + t2.frame.height);
+function isSameLine(t1: OcrElement, t2: OcrElement, skewRad: number = 0) {
+  const cx1 = t1.frame.x + t1.frame.width / 2;
+  const cy1 = t1.frame.y + t1.frame.height / 2;
+  const cx2 = t2.frame.x + t2.frame.width / 2;
+  const cy2 = t2.frame.y + t2.frame.height / 2;
 
-  let height = (t1.frame.height + t2.frame.height) * 0.35;
+  const correctedY1 = cy1 * Math.cos(skewRad) - cx1 * Math.sin(skewRad);
+  const correctedY2 = cy2 * Math.cos(skewRad) - cx2 * Math.sin(skewRad);
 
-  if (Math.abs(diffOfTops) > height) {
-    return false;
-  }
-  return true;
+  const avgHeight = (t1.frame.height + t2.frame.height) / 2;
+  return Math.abs(correctedY1 - correctedY2) < avgHeight * 0.5;
 }
 
 // Helper function to turn raw text into structured JSON (the hard part)
