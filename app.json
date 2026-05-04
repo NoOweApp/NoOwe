@@ -4,7 +4,7 @@
     "slug": "Senior-Design-Project",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.png",
+    //"icon": "./assets/logo.png",
     "scheme": "seniordesignproject",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -22,19 +22,20 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS",
+        "android.permission.READ_CONTACTS",
         "android.permission.WRITE_CONTACTS"
-      ]
+      ],
+      "package": "com.anonymous.SeniorDesignProject"
     },
     "web": {
       "output": "static"
-      //"favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          //"image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
