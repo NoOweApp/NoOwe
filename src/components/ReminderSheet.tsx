@@ -54,7 +54,7 @@ const SERVICE_LABELS: Record<string, string> = {
 };
 
 function buildDefaultMessage(billDescription: string): string {
-  return 'Hey! Just a reminder that you still haven\'t settled for "' + billDescription + '". Let me know when you\'ve settled up! 🙏';
+  return 'Hey! Just a reminder that you still owe ${oweAmount} for "' + billDescription + '". Let me know when you\'ve settled up! 🙏';
 }
 
 function loadPaymentMethodsFromDisk(): PaymentMethod[] {
