@@ -72,7 +72,10 @@ export function useSmsReminder() {
         // Substitute ${oweAmount} placeholder with this person's amount, the
         // same way the payment footer is appended — resolved per-person at send time.
         console.log(JSON.stringify(person))
-        const resolvedBody = opts.messageBody + (person.oweAmount != null ? `\nPlease Send: $${person.oweAmount.toFixed(2)}` : "");
+        const resolvedBody = opts.messageBody.replace(
+          "${oweAmount}",
+          person.oweAmount != null ? `$${person.oweAmount.toFixed(2)}` : "your share"
+        );
 
         const fullMessage = [
           resolvedBody,

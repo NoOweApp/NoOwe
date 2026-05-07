@@ -149,7 +149,6 @@ function extractReceiptData(rawText: string) {
     "change",
     "payment",
     "discount",
-    "pre-discount"
   ];
 
   const isSummaryLine = (name: string) =>
@@ -172,12 +171,7 @@ function extractReceiptData(rawText: string) {
     const rawName = match[1].trim();
     const rawPrice = match[2];
 
-    if (isSummaryLine(rawName)) {
-      if (rawName.toLowerCase().trim().startsWith("total")) {
-        break;
-      }
-      continue;
-    }
+    if (isSummaryLine(rawName)) continue;
 
     // Filter out lines that are likely OCR noise:
     // - Purely numeric names
