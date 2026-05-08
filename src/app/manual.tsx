@@ -6,6 +6,7 @@ import { Directory, File, Paths } from "expo-file-system/next";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import React, { useEffect, useRef, useState } from "react";
+
 import {
   Alert,
   Image,
@@ -42,6 +43,23 @@ type Item = {
   owners: Person[];
 };
 
+function normalizeImageUri(uri?: string): string | undefined {
+  if (!uri) return undefined;
+  // Already a data URI or has a scheme — leave it alone
+  if (
+    uri.startsWith("data:") ||
+    uri.startsWith("file://") ||
+    uri.startsWith("http")
+  ) {
+    return uri;
+  }
+  // Raw filesystem path from expo-contacts on iOS — needs file:// prefix
+  if (uri.startsWith("/")) {
+    return `file://${uri}`;
+  }
+  return uri;
+}
+
 function PersonAvatar({
   imageUri,
   name,
@@ -59,6 +77,7 @@ function PersonAvatar({
   const initial = name ? name[0].toUpperCase() : "?";
   const fontSize = Math.round(size * 0.38);
   const showImage = !!imageUri && !imgFailed;
+  const normalizedUri = normalizeImageUri(imageUri);
 
   return (
     <View
@@ -70,9 +89,9 @@ function PersonAvatar({
         backgroundColor: bgColor,
       }}
     >
-      {showImage ? (
+      {showImage && normalizedUri ? (
         <Image
-          source={{ uri: imageUri }}
+          source={{ uri: normalizedUri }}
           style={{
             width: size,
             height: size,
@@ -103,6 +122,7 @@ export default function Manual() {
   const [people, setPeople] = useState<Person[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   //Bill confirmation modal states
   const [confirmationModalVisible, setConfirmationModalVisible] =
@@ -613,6 +633,8 @@ export default function Manual() {
     !isNaN(tipNum) &&
     taxNum >= 0 &&
     tipNum >= 0 &&
+    taxNum <= 10000 &&
+    tipNum <= 10000 &&
     /^\d+(\.\d{1,2})?$/.test(tax) &&
     /^\d+(\.\d{1,2})?$/.test(tip);
 
@@ -686,10 +708,14 @@ export default function Manual() {
                 paddingHorizontal: 14,
                 paddingVertical: 5,
                 marginRight: 8,
+                maxWidth: 180,
               }}
             >
               <Text
                 variant="labelLarge"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                ellipsizeMode="tail"
                 style={{ color: "white", fontWeight: "800" }}
               >
                 ${runningTotal.toFixed(2)}
@@ -1005,7 +1031,15 @@ export default function Manual() {
               value={tax}
               onChangeText={(val) => {
                 setTax(val);
-                setTaxTipError("");
+                const taxNum = parseFloat(val);
+                const tipNum = parseFloat(tip);
+                if (!isNaN(taxNum) && taxNum > 10000) {
+                  setTaxTipError("Tax cannot exceed $10,000.");
+                } else if (!isNaN(tipNum) && tipNum > 10000) {
+                  setTaxTipError("Tip cannot exceed $10,000.");
+                } else {
+                  setTaxTipError("");
+                }
               }}
               onFocus={() =>
                 mainScrollRef.current?.scrollToEnd({ animated: false })
@@ -1021,7 +1055,15 @@ export default function Manual() {
               value={tip}
               onChangeText={(val) => {
                 setTip(val);
-                setTaxTipError("");
+                const tipNum = parseFloat(val);
+                const taxNum = parseFloat(tax);
+                if (!isNaN(tipNum) && tipNum > 10000) {
+                  setTaxTipError("Tip cannot exceed $10,000.");
+                } else if (!isNaN(taxNum) && taxNum > 10000) {
+                  setTaxTipError("Tax cannot exceed $10,000.");
+                } else {
+                  setTaxTipError("");
+                }
               }}
               onFocus={() =>
                 mainScrollRef.current?.scrollToEnd({ animated: false })
@@ -1033,6 +1075,11 @@ export default function Manual() {
               outlineStyle={{ borderRadius: 50 }}
             />
           </View>
+          {taxTipError !== "" && (
+            <HelperText type="error" visible style={{ paddingHorizontal: 4 }}>
+              {taxTipError}
+            </HelperText>
+          )}
         </ScrollView>
 
         {/* Fixed footer — Submit */}

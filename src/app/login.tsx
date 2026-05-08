@@ -12,6 +12,7 @@ import {
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   return (
     <KeyboardAvoidingView

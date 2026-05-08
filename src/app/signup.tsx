@@ -74,6 +74,7 @@ export default function SignupScreen({ navigation }: any) {
 
   const firstError = firstTouched ? validateName(firstName) : null;
   const lastError = lastTouched ? validateOptionalName(lastName) : null;
+  const [isLoading, setIsLoading] = useState(false);
 
   const isFormValid = useMemo(() => {
     return (
