@@ -130,6 +130,7 @@ function extractReceiptData(rawText: string) {
   const SUMMARY_KEYS = [
     "subtotal",
     "sub total",
+    "sub-total",
     "total",
     "tax",
     "vat",
@@ -149,6 +150,8 @@ function extractReceiptData(rawText: string) {
     "change",
     "payment",
     "discount",
+    "pre-discount",
+    "credit card"
   ];
 
   const isSummaryLine = (name: string) =>
@@ -171,7 +174,12 @@ function extractReceiptData(rawText: string) {
     const rawName = match[1].trim();
     const rawPrice = match[2];
 
-    if (isSummaryLine(rawName)) continue;
+    if (isSummaryLine(rawName)) {
+      if (rawName.toLowerCase().trim().startsWith("total")) {
+        break;
+      }
+      continue;
+    }
 
     // Filter out lines that are likely OCR noise:
     // - Purely numeric names
@@ -193,7 +201,7 @@ function extractReceiptData(rawText: string) {
     });
   }
 
-  const tax = extractSummaryValue(["tax", "vat"]);
+  const tax = extractSummaryValue(["tax", "vat", "taxes"]);
   const tip = extractSummaryValue([
     "tip",
     "gratuity",

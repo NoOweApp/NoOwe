@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Senior-Design-Project",
-    "slug": "Senior-Design-Project",
+    "name": "NoOwe",
+    "slug": "NoOwe",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "src/assets/logo.png",
-    "scheme": "seniordesignproject",
+    "icon": "./src/assets/logo.png",
+    "scheme": "noowe",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.NoOwe"
+      "bundleIdentifier": "com.ananyashri.NoOwe"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +24,7 @@
         "android.permission.READ_CONTACTS",
         "android.permission.WRITE_CONTACTS"
       ],
-      "package": "com.anonymous.SeniorDesignProject"
+      "package": "com.ananyashri.NoOwe"
     },
     "web": {
       "output": "static"

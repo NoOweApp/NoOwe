@@ -1,50 +1,66 @@
-# Welcome to your Expo app 👋
+# NoOwe
+A free, open-source bill splitting app with bill scanning via OCR.
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+## Our Vision
+ NoOwe is a cutting edge OCR backed bill-splitting application, built to make cost-sharing simple. It is completely free and open source, hosted via GitHub to allow users to report issues and add and suggest new features. For maximal security, the application features a serverless backend, allowing for all personal information to remain local. 
+ 
+## Features
+- Scan bills using your camera
+- Manually edit line items
+- Import/manually add contacts
+- Assign items to each contact
+- Sends a generated message to each contact with their split and your preferred payment method
 
-## Get started
+## Tech Stack
+- **Framework:** React Native + Expo
+- **Navigation:** Expo Router
+- **No Backend:** fully client-side
+- **Platforms:** iOS
 
-1. Install dependencies
+## Getting Started
 
-   ```bash
-   npm install
-   ```
+### Prerequisites
+- Node.js >= 18
+- iOS 15.5+ (for native iOS build)
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+### First-Time Setup
 ```bash
-npm run reset-project
+git clone https://github.com/ananyashri/NoOwe.git
+cd NoOwe
+npm install
+npx expo prebuild
+# plug your iPhone into your computer, make sure it has developer mode enabled (Settings > Privacy & Security > Developer Mode)
+npx expo run:ios --device
 ```
+> Requires Xcode and an Apple ID. On first launch, go to **Settings → General → VPN & Device Management** and trust the developer certificate.
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### After Initial Setup
+```bash
+npx expo start --dev-client
+```
+> Use `--tunnel` to bypass network restrictions if needed.
 
-## Learn more
+## Contributing
+This project is open source, and contributions are welcome!
 
-To learn more about developing your project with Expo, look at the following resources:
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Make changes
+4. Commit your changes (`git commit -m 'Add your feature'`)
+5. Push to the branch (`git push origin feature/your-feature`)
+6. Open a Pull Request
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Maintainers
+- [Owen Ungaro](https://github.com/owenungaro)
+- [Arjun Gore](https://github.com/arjuncgore)
+- [Aditya Kumaran](https://github.com/adikumaran)
+- [Jacob Choi](https://github.com/JacobChoi5)
+- [Ananya Shrivastava](https://github.com/ananyashri)
+- [George Oliynyk](https://github.com/TheDarkElites)
 
-## Join the community
+## License
+[GNU GENERAL PUBLIC LICENSE](./LICENSE)
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Acknowledgements
+- Built as a Senior Design Project at Stevens Institute of Technology
+- Under the guidance of professors Patrick Hill and Matthew Wade

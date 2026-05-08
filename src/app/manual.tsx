@@ -246,6 +246,7 @@ export default function Manual() {
   const [taxTipError, setTaxTipError] = useState("");
   const mainScrollRef = useRef<ScrollView>(null);
   const [kbHeight, setKbHeight] = useState(0);
+  const [billName, setBillName] = useState("");
 
   useEffect(() => {
     const showEvent =
@@ -577,7 +578,7 @@ export default function Manual() {
     const bill = {
       id: Date.now().toString(),
       dateUploaded: new Date().toISOString().split("T")[0],
-      description: "Manual Bill",
+      description: billName.trim(),
       totalAmountPaid: Math.round((itemsTotal + taxNum + tipNum) * 100) / 100,
       tax: taxNum,
       tip: tipNum,
@@ -621,6 +622,9 @@ export default function Manual() {
   const tipNum = parseFloat(tip);
   const runningTotal =
     itemsTotal + (isNaN(taxNum) ? 0 : taxNum) + (isNaN(tipNum) ? 0 : tipNum);
+  const trimmedBillName = billName.trim();
+
+  const billNameValid = (trimmedBillName.length >= 2 && trimmedBillName.length <= 50);
 
   const taxTipValid =
     tax.trim() !== "" &&
@@ -646,20 +650,21 @@ export default function Manual() {
     people.some(
       (person) => !items.some((item) => item.owners.includes(person)),
     ) ||
-    !taxTipValid;
+    !taxTipValid ||
+    !billNameValid;
 
   const getSubmitBillError = () => {
     if (people.length < 2) return "Add at least 2 people to split the bill.";
     if (items.length === 0) return "Add at least one item.";
     if (items.some((item) => item.owners.length === 0))
       return "All items must have people assigned.";
+    if (!billNameValid) return "Bill name must be between 2 and 50 characters"
     if (
       people.some(
         (person) => !items.some((item) => item.owners.includes(person)),
       )
     )
       return "All people must be assigned to at least one item.";
-    return "";
   };
 
   return (
@@ -727,6 +732,17 @@ export default function Manual() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          <TextInput
+            label="Bill Name"
+            value={billName}
+            onChangeText={setBillName}
+            mode="outlined"
+            style={{
+              marginBottom: 24,
+              backgroundColor: theme.colors.surfaceVariant,
+            }}
+            outlineStyle={{ borderRadius: 16 }}
+          />
           {/* People section */}
           <View
             style={{
