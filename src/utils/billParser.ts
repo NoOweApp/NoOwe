@@ -130,6 +130,7 @@ function extractReceiptData(rawText: string) {
   const SUMMARY_KEYS = [
     "subtotal",
     "sub total",
+    "sub-total",
     "total",
     "tax",
     "vat",
@@ -149,7 +150,8 @@ function extractReceiptData(rawText: string) {
     "change",
     "payment",
     "discount",
-    "pre-discount"
+    "pre-discount",
+    "credit card"
   ];
 
   const isSummaryLine = (name: string) =>
@@ -199,7 +201,7 @@ function extractReceiptData(rawText: string) {
     });
   }
 
-  const tax = extractSummaryValue(["tax", "vat"]);
+  const tax = extractSummaryValue(["tax", "vat", "taxes"]);
   const tip = extractSummaryValue([
     "tip",
     "gratuity",
