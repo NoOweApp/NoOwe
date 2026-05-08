@@ -1,3 +1,4 @@
+import Loading from "@/src/components/Loading"; //animation
 import { validateLogin } from "@/validation/helpers";
 import { Directory, File, Paths } from "expo-file-system/next";
 import { Redirect, useRouter } from "expo-router";
@@ -17,7 +18,6 @@ import {
   useTheme,
 } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Loading from "../components/Loading"; //animation
 
 const PAYMENT_OPTIONS = ["Venmo", "PayPal", "Zelle", "Cash App"];
 const TOTAL_STEPS = 4;

@@ -6,6 +6,7 @@ import { Directory, File, Paths } from "expo-file-system/next";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import React, { useEffect, useRef, useState } from "react";
+
 import {
   Alert,
   Image,
@@ -121,6 +122,7 @@ export default function Manual() {
   const [people, setPeople] = useState<Person[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   //Bill confirmation modal states
   const [confirmationModalVisible, setConfirmationModalVisible] =
