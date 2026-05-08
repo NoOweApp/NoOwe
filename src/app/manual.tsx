@@ -629,6 +629,8 @@ export default function Manual() {
     !isNaN(tipNum) &&
     taxNum >= 0 &&
     tipNum >= 0 &&
+    taxNum <= 10000 &&
+    tipNum <= 10000 &&
     /^\d+(\.\d{1,2})?$/.test(tax) &&
     /^\d+(\.\d{1,2})?$/.test(tip);
 
@@ -701,10 +703,14 @@ export default function Manual() {
                 paddingHorizontal: 14,
                 paddingVertical: 5,
                 marginRight: 8,
+                maxWidth: 180,
               }}
             >
               <Text
                 variant="labelLarge"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                ellipsizeMode="tail"
                 style={{ color: "white", fontWeight: "800" }}
               >
                 ${runningTotal.toFixed(2)}
@@ -1009,7 +1015,15 @@ export default function Manual() {
               value={tax}
               onChangeText={(val) => {
                 setTax(val);
-                setTaxTipError("");
+                const taxNum = parseFloat(val);
+                const tipNum = parseFloat(tip);
+                if (!isNaN(taxNum) && taxNum > 10000) {
+                  setTaxTipError("Tax cannot exceed $10,000.");
+                } else if (!isNaN(tipNum) && tipNum > 10000) {
+                  setTaxTipError("Tip cannot exceed $10,000.");
+                } else {
+                  setTaxTipError("");
+                }
               }}
               onFocus={() =>
                 mainScrollRef.current?.scrollToEnd({ animated: false })
@@ -1025,7 +1039,15 @@ export default function Manual() {
               value={tip}
               onChangeText={(val) => {
                 setTip(val);
-                setTaxTipError("");
+                const tipNum = parseFloat(val);
+                const taxNum = parseFloat(tax);
+                if (!isNaN(tipNum) && tipNum > 10000) {
+                  setTaxTipError("Tip cannot exceed $10,000.");
+                } else if (!isNaN(taxNum) && taxNum > 10000) {
+                  setTaxTipError("Tax cannot exceed $10,000.");
+                } else {
+                  setTaxTipError("");
+                }
               }}
               onFocus={() =>
                 mainScrollRef.current?.scrollToEnd({ animated: false })
@@ -1037,6 +1059,11 @@ export default function Manual() {
               outlineStyle={{ borderRadius: 50 }}
             />
           </View>
+          {taxTipError !== "" && (
+            <HelperText type="error" visible style={{ paddingHorizontal: 4 }}>
+              {taxTipError}
+            </HelperText>
+          )}
         </ScrollView>
 
         {/* Fixed footer — Submit */}
