@@ -29,7 +29,7 @@ git clone https://github.com/ananyashri/NoOwe.git
 cd NoOwe
 npm install
 npx expo prebuild
-# plug your iPhone into your computer, make sure it has developer mode enabled (Settings → Privacy & Security → Developer Mode)
+# plug your iPhone into your computer, make sure it has developer mode enabled (Settings > Privacy & Security > Developer Mode)
 npx expo run:ios --device
 ```
 > Requires Xcode and an Apple ID. On first launch, go to **Settings → General → VPN & Device Management** and trust the developer certificate.
