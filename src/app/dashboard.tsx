@@ -42,6 +42,21 @@ type ReminderBill = {
   totalAmountPaid: number;
 };
 
+function normalizeImageUri(uri?: string): string | undefined {
+  if (!uri) return undefined;
+  if (
+    uri.startsWith("data:") ||
+    uri.startsWith("file://") ||
+    uri.startsWith("http")
+  ) {
+    return uri;
+  }
+  if (uri.startsWith("/")) {
+    return `file://${uri}`;
+  }
+  return uri;
+}
+
 function PersonAvatar({
   imageUri,
   name,
@@ -58,8 +73,8 @@ function PersonAvatar({
   const [imgFailed, setImgFailed] = React.useState(false);
   const initial = name ? name[0].toUpperCase() : "?";
   const fontSize = Math.round(size * 0.38);
-  const showImage = !!imageUri && !imgFailed;
-  const [isLoading, setIsLoading] = useState(false);
+  const normalizedUri = normalizeImageUri(imageUri);
+  const showImage = !!normalizedUri && !imgFailed;
 
   return (
     <View
@@ -73,7 +88,7 @@ function PersonAvatar({
     >
       {showImage ? (
         <Image
-          source={{ uri: imageUri }}
+          source={{ uri: normalizedUri }}
           style={{
             width: size,
             height: size,
@@ -218,7 +233,7 @@ export default function Dashboard() {
             }}
           >
             <Image
-              source={require("../assets/logo.png")}
+              source={require("@/src/assets/logo.png")}
               style={{ width: 32, height: 32 }}
               resizeMode="cover"
             />
