@@ -1,9 +1,11 @@
-import Loading from "@/src/components/Loading"; //animation
+import Intro from "@/src/components/Intro"; //animation
 import { validateLogin } from "@/validation/helpers";
 import { Directory, File, Paths } from "expo-file-system/next";
-import { Redirect, useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Animated,
+  Easing,
   Image,
   Keyboard,
   Pressable,
@@ -37,6 +39,8 @@ const STEP_SUBTITLES = [
 ];
 
 export default function HomeLogin() {
+  const textY = useRef(new Animated.Value(60)).current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -50,14 +54,46 @@ export default function HomeLogin() {
   >({});
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false); // change this use state to true for testing animation
+  const [isIntro, setisIntro] = useState(true);
 
   const nooweFolderPath = new Directory(Paths.document, "NoOwe");
   const settingsJson = new File(nooweFolderPath, "settings.json");
 
-  //comment out this if block to test the loading animation
-  if (settingsJson.exists) {
-    return <Redirect href="/dashboard" />;
-  }
+  useEffect(() => {
+    if (!isIntro) return;
+
+    // reset before animating
+    textY.setValue(60);
+    textOpacity.setValue(0);
+
+    const textTimer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(textY, {
+          toValue: 0,
+          duration: 600,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(textOpacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, 1000);
+
+    const timer = setTimeout(() => {
+      setisIntro(false);
+      if (settingsJson.exists) {
+        router.replace("/dashboard");
+      }
+    }, 2000);
+
+    return () => {
+      clearTimeout(textTimer);
+      clearTimeout(timer);
+    };
+  }, [isIntro]); // ← depend on isIntro so it re-runs when submit triggers it
 
   const togglePayment = (value: string) => {
     setSelectedMethods((prev) => {
@@ -267,7 +303,7 @@ export default function HomeLogin() {
               label="First Name"
               value={firstName}
               onChangeText={setFirstName}
-              autoFocus
+              autoFocus={!isIntro}
               returnKeyType="next"
               onSubmitEditing={canAdvance() ? handleNext : undefined}
             />
@@ -279,7 +315,7 @@ export default function HomeLogin() {
               label="Last Name"
               value={lastName}
               onChangeText={setLastName}
-              autoFocus
+              autoFocus={!isIntro}
               returnKeyType="next"
               onSubmitEditing={handleNext}
             />
@@ -411,26 +447,47 @@ export default function HomeLogin() {
               </Button>
             )}
           </View>
-
-          {/* ── Loading overlay ── */}
-          {isLoading && (
-            <View
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: theme.colors.background,
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 10,
-              }}
-            >
-              <Loading />
-            </View>
-          )}
         </View>
+        {/* ── Intro overlay ── */}
+        {isIntro && (
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: theme.colors.background,
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 999,
+              elevation: 999,
+            }}
+          >
+            {/* wrapper keeps wallet and text together */}
+            <View style={{ alignItems: "center" }}>
+              <Intro />
+              <Animated.View
+                style={{
+                  opacity: textOpacity,
+                  transform: [{ translateY: textY }],
+                  marginTop: 12,
+                }}
+              >
+                <Text
+                  variant="headlineMedium"
+                  style={{
+                    color: theme.colors.onBackground,
+                    fontWeight: "800",
+                    letterSpacing: -0.5,
+                  }}
+                >
+                  NoOwe
+                </Text>
+              </Animated.View>
+            </View>
+          </View>
+        )}
       </View>
     </TouchableWithoutFeedback>
   );
