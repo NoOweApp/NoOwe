@@ -1,16 +1,18 @@
 import React, { useEffect, useRef } from "react";
 import {
-  Animated,
-  Easing,
-  StyleSheet,
-  View,
-  useWindowDimensions,
+    Animated,
+    Easing,
+    StyleSheet,
+    View,
+    useWindowDimensions,
 } from "react-native";
 
 export default function Loading() {
   const { width } = useWindowDimensions();
   const coin1Y = useRef(new Animated.Value(0)).current;
   const coin2Y = useRef(new Animated.Value(0)).current;
+  const coin1Opacity = useRef(new Animated.Value(0)).current;
+  const coin2Opacity = useRef(new Animated.Value(0)).current;
   const star1Opacity = useRef(new Animated.Value(0)).current;
   const star2Opacity = useRef(new Animated.Value(0)).current;
   const star3Opacity = useRef(new Animated.Value(0)).current;
@@ -18,28 +20,61 @@ export default function Loading() {
 
   const WALLET_SIZE = width * 0.35;
   const COIN_SIZE = WALLET_SIZE * 0.16;
-  const COIN_TRAVEL = -WALLET_SIZE * 0.45;
   const STAR_LG = width * 0.04;
   const STAR_SM = width * 0.025;
+  const COIN_START = -WALLET_SIZE * 2; // starts above the wallet
+  const COIN_END = WALLET_SIZE * 0.32; // lands at slot position
 
   useEffect(() => {
-    const bounce = (anim: Animated.Value, duration: number) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(anim, {
-            toValue: COIN_TRAVEL,
-            duration,
-            easing: Easing.inOut(Easing.sin),
+    const dropCoin = (
+      animY: Animated.Value,
+      animOpacity: Animated.Value,
+      delay: number,
+    ) =>
+      Animated.sequence([
+        Animated.delay(delay),
+        // reset position to top
+        Animated.parallel([
+          Animated.timing(animY, {
+            toValue: COIN_START,
+            duration: 0,
             useNativeDriver: true,
           }),
-          Animated.timing(anim, {
-            toValue: 0,
-            duration,
-            easing: Easing.inOut(Easing.sin),
+          Animated.timing(animOpacity, {
+            toValue: 1,
+            duration: 0,
             useNativeDriver: true,
           }),
         ]),
-      );
+        // hard fall with gravity feel
+        Animated.timing(animY, {
+          toValue: 0,
+          duration: 500,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        // quick bounce on landing
+        Animated.timing(animY, {
+          toValue: -WALLET_SIZE * 0.05,
+          duration: 80,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(animY, {
+          toValue: 0,
+          duration: 80,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        // fade out as coin drops into wallet
+        Animated.timing(animOpacity, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        // pause before next drop
+        Animated.delay(600),
+      ]);
 
     const starBlink = (anim: Animated.Value, delay: number) =>
       Animated.loop(
@@ -59,8 +94,8 @@ export default function Loading() {
         ]),
       );
 
-    bounce(coin1Y, 600).start();
-    bounce(coin2Y, 900).start();
+    dropCoin(coin1Y, coin1Opacity, 0).start();
+    dropCoin(coin2Y, coin2Opacity, 350).start();
     starBlink(star1Opacity, 0).start();
     starBlink(star2Opacity, 200).start();
     starBlink(star3Opacity, 400).start();
@@ -68,7 +103,6 @@ export default function Loading() {
   }, []);
 
   return (
-    // ← no flex:1, no marginTop, just wraps content naturally
     <View style={{ alignItems: "center", justifyContent: "center" }}>
       <View style={{ width: WALLET_SIZE, height: WALLET_SIZE }}>
         {/* Stars */}
@@ -141,7 +175,7 @@ export default function Loading() {
           resizeMode="contain"
         />
 
-        {/* Coin 1 */}
+        {/* Coin 1 — falls first */}
         <Animated.Image
           source={require("../assets/Coin.png")}
           style={{
@@ -151,12 +185,13 @@ export default function Loading() {
             left: WALLET_SIZE * 0.25,
             top: WALLET_SIZE * 0.32,
             zIndex: 2,
+            opacity: coin1Opacity,
             transform: [{ translateY: coin1Y }],
           }}
           resizeMode="contain"
         />
 
-        {/* Coin 2 */}
+        {/* Coin 2 — falls second */}
         <Animated.Image
           source={require("../assets/Coin.png")}
           style={{
@@ -166,6 +201,7 @@ export default function Loading() {
             left: WALLET_SIZE * 0.54,
             top: WALLET_SIZE * 0.32,
             zIndex: 2,
+            opacity: coin2Opacity,
             transform: [{ translateY: coin2Y }],
           }}
           resizeMode="contain"
