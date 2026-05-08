@@ -42,6 +42,23 @@ type Item = {
   owners: Person[];
 };
 
+function normalizeImageUri(uri?: string): string | undefined {
+  if (!uri) return undefined;
+  // Already a data URI or has a scheme — leave it alone
+  if (
+    uri.startsWith("data:") ||
+    uri.startsWith("file://") ||
+    uri.startsWith("http")
+  ) {
+    return uri;
+  }
+  // Raw filesystem path from expo-contacts on iOS — needs file:// prefix
+  if (uri.startsWith("/")) {
+    return `file://${uri}`;
+  }
+  return uri;
+}
+
 function PersonAvatar({
   imageUri,
   name,
@@ -59,6 +76,7 @@ function PersonAvatar({
   const initial = name ? name[0].toUpperCase() : "?";
   const fontSize = Math.round(size * 0.38);
   const showImage = !!imageUri && !imgFailed;
+  const normalizedUri = normalizeImageUri(imageUri);
 
   return (
     <View
@@ -70,9 +88,9 @@ function PersonAvatar({
         backgroundColor: bgColor,
       }}
     >
-      {showImage ? (
+      {showImage && normalizedUri ? (
         <Image
-          source={{ uri: imageUri }}
+          source={{ uri: normalizedUri }}
           style={{
             width: size,
             height: size,

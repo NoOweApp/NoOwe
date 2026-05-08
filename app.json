@@ -4,19 +4,17 @@
     "slug": "Senior-Design-Project",
     "version": "1.0.0",
     "orientation": "portrait",
-    //"icon": "./assets/logo.png",
+    "icon": "src/assets/logo.png",
     "scheme": "seniordesignproject",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.Senior-Design-Project"
+      "bundleIdentifier": "com.anonymous.NoOwe"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#E6F4FE"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
