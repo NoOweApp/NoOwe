@@ -2,7 +2,7 @@
 A free, open-source bill splitting app with bill scanning via OCR.
 
 ## Our Vision
-NoOwe incorporates features other apps like Splitwise lock behind a paywall. It is completely free and open source, hosted on GitHub so users can report issues and add features. It doesn't save any of your information, running completely on your device with no backend.
+NoOwe incorporates features that other apps like Splitwise lock behind a paywall. It is completely free and open source, hosted on GitHub, so users can report issues and add features. It doesn't save any of your information, running completely on your device with no backend.
 
 ## Features
 - Scan bills using your camera
@@ -14,32 +14,41 @@ NoOwe incorporates features other apps like Splitwise lock behind a paywall. It 
 ## Tech Stack
 - **Framework:** React Native + Expo
 - **Navigation:** Expo Router
-- **No Backend** — fully client-side
-- **Platforms:** iOS, Android
+- **No Backend:** fully client-side
+- **Platforms:** iOS
 
 ## Getting Started
 
 ### Prerequisites
 - Node.js >= 18
-- Expo Go app on your phone (for development)
+- iOS 15.5+ (for native iOS build)
 
-### Installation & Running
+### First-Time Setup
 ```bash
-git clone https://github.com/ananyashri/Senior-Design-Project.git
-cd Senior-Design-Project
-npm i
-npx expo start
+git clone https://github.com/ananyashri/NoOwe.git
+cd NoOwe
+npm install
+npx expo prebuild
+# plug your iPhone into your computer
+npx expo run:ios --device
 ```
-Then scan the QR code with Expo Go on your phone.
+> Requires Xcode and an Apple ID. On first launch, go to **Settings → General → VPN & Device Management** and trust the developer certificate.
+
+### After Initial Setup
+```bash
+npx expo start --dev-client
+```
+> Use `--tunnel` to bypass network restrictions if needed.
 
 ## Contributing
-This project is open source and contributions are welcome!
+This project is open source, and contributions are welcome!
 
 1. Fork the repo
 2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -m 'Add your feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Open a Pull Request
+3. Make changes
+4. Commit your changes (`git commit -m 'Add your feature'`)
+5. Push to the branch (`git push origin feature/your-feature`)
+6. Open a Pull Request
 
 ## Maintainers
 - [Owen Ungaro](https://github.com/owenungaro)
