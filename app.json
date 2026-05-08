@@ -14,8 +14,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
-        "monochromeImage": "./src/assets/logo.png"
+        "backgroundColor": "#E6F4FE"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -25,7 +24,7 @@
         "android.permission.READ_CONTACTS",
         "android.permission.WRITE_CONTACTS"
       ],
-      "package": "com.anonymous.NoOwe"
+      "package": "com.ananyashri.NoOwe"
     },
     "web": {
       "output": "static"
