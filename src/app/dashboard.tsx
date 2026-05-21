@@ -42,6 +42,16 @@ type ReminderBill = {
   totalAmountPaid: number;
 };
 
+type Draft = {
+  draftId: string;
+  billName: string;
+  people: { name: string | null; phone: string }[];
+  items: { name: string; cost: number; ownerIndices: number[] }[];
+  tax: string;
+  tip: string;
+  savedAt: string;
+};
+
 function normalizeImageUri(uri?: string): string | undefined {
   if (!uri) return undefined;
   if (
@@ -115,6 +125,7 @@ export default function Dashboard() {
   const [createBillModalVisible, setCreateBillModalVisible] = useState(false);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
 
   const [reminderSheetVisible, setReminderSheetVisible] = useState(false);
   const [reminderPeople, setReminderPeople] = useState<Person[]>([]);
@@ -122,7 +133,7 @@ export default function Dashboard() {
 
   useFocusEffect(
     useCallback(() => {
-      const loadBills = async () => {
+      const loadData = async () => {
         try {
           const folder = new Directory(Paths.document, "NoOwe");
           const billsFile = new File(folder, "bills.json");
@@ -133,11 +144,20 @@ export default function Dashboard() {
           } else {
             setBills([]);
           }
+          const draftsFile = new File(folder, "draft_bills.json");
+          if (draftsFile.exists) {
+            const text = await draftsFile.text();
+            const parsed: Draft[] = JSON.parse(text);
+            setDrafts([...parsed].reverse());
+          } else {
+            setDrafts([]);
+          }
         } catch {
           setBills([]);
+          setDrafts([]);
         }
       };
-      loadBills();
+      loadData();
     }, []),
   );
 
@@ -318,6 +338,98 @@ export default function Dashboard() {
               />
             </View>
           </View>
+        )}
+
+        {/* In-Progress Drafts section */}
+        {drafts.length > 0 && (
+          <>
+            <Text
+              variant="labelSmall"
+              style={{
+                color: "#D97706",
+                textTransform: "uppercase",
+                letterSpacing: 1.2,
+                marginBottom: 14,
+              }}
+            >
+              In Progress
+            </Text>
+            {drafts.map((draft) => (
+              <Pressable
+                key={draft.draftId}
+                onPress={() =>
+                  router.push({
+                    pathname: "/manual",
+                    params: { draft_id: draft.draftId },
+                  })
+                }
+                style={{ marginBottom: 12 }}
+              >
+                <View
+                  style={{
+                    backgroundColor: theme.colors.surface,
+                    borderRadius: 16,
+                    borderWidth: 1.5,
+                    borderStyle: "dashed",
+                    borderColor: "#D97706",
+                    padding: 16,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <Text
+                      variant="titleMedium"
+                      style={{
+                        color: theme.colors.onSurface,
+                        fontWeight: "700",
+                        flex: 1,
+                        marginRight: 10,
+                      }}
+                    >
+                      {draft.billName.trim() || "Untitled Bill"}
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: "#D97706",
+                        borderRadius: 6,
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "white",
+                          fontSize: 10,
+                          fontWeight: "800",
+                          letterSpacing: 0.8,
+                        }}
+                      >
+                        IN PROGRESS
+                      </Text>
+                    </View>
+                  </View>
+                  <Text
+                    variant="bodySmall"
+                    style={{
+                      color: theme.colors.onSurfaceVariant,
+                      marginTop: 6,
+                    }}
+                  >
+                    {draft.people.length}{" "}
+                    {draft.people.length === 1 ? "person" : "people"} ·{" "}
+                    {draft.items.length}{" "}
+                    {draft.items.length === 1 ? "item" : "items"}
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+            <View style={{ marginBottom: 8 }} />
+          </>
         )}
 
         {/* Section label */}

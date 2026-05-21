@@ -114,7 +114,8 @@ export default function Manual() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { temp_bill } = useLocalSearchParams();
+  const { temp_bill, draft_id } = useLocalSearchParams<{ temp_bill?: string; draft_id?: string }>();
+  const currentDraftId = typeof draft_id === "string" && draft_id.trim() !== "" ? draft_id : null;
 
   type PeopleModalView = "main" | "manual" | "auto";
   const [peopleModalVisible, setPeopleModalVisible] = useState(false);
@@ -128,8 +129,11 @@ export default function Manual() {
   const [confirmationModalVisible, setConfirmationModalVisible] =
     useState(false);
   const [confirmedPeople, setConfirmedPeople] = useState<Person[]>([]);
+  const [discardDialogVisible, setDiscardDialogVisible] = useState(false);
+  const [deleteDraftDialogVisible, setDeleteDraftDialogVisible] = useState(false);
 
   useEffect(() => {
+    if (currentDraftId) return;
     if (typeof temp_bill === "string" && temp_bill.trim() !== "") {
       try {
         const bill = JSON.parse(temp_bill);
@@ -151,6 +155,7 @@ export default function Manual() {
   }, [temp_bill]);
 
   useEffect(() => {
+    if (currentDraftId) return;
     const loadProfile = async () => {
       try {
         const nooweFolderPath = new Directory(Paths.document, "NoOwe");
@@ -170,6 +175,38 @@ export default function Manual() {
       }
     };
     loadProfile();
+  }, []);
+
+  useEffect(() => {
+    if (!currentDraftId) return;
+    const loadDraft = async () => {
+      try {
+        const folder = new Directory(Paths.document, "NoOwe");
+        const draftsFile = new File(folder, "draft_bills.json");
+        if (!draftsFile.exists) return;
+        const text = await draftsFile.text();
+        const drafts = JSON.parse(text);
+        const draft = drafts.find((d: any) => d.draftId === currentDraftId);
+        if (!draft) return;
+        setBillName(draft.billName ?? "");
+        const loadedPeople: Person[] = draft.people ?? [];
+        setPeople(loadedPeople);
+        setItems(
+          (draft.items ?? []).map((item: any) => ({
+            name: item.name,
+            cost: item.cost,
+            owners: (item.ownerIndices ?? [])
+              .map((i: number) => loadedPeople[i])
+              .filter(Boolean),
+          })),
+        );
+        setTax(draft.tax ?? "");
+        setTip(draft.tip ?? "");
+      } catch (e) {
+        // ignore
+      }
+    };
+    loadDraft();
   }, []);
 
   const [contacts, setContacts] = useState<Contacts.Contact[]>([]);
@@ -462,6 +499,67 @@ export default function Manual() {
     setItemModalVisible(true);
   };
 
+  const saveDraft = async (existingDraftId?: string | null) => {
+    const draftId = existingDraftId ?? Date.now().toString();
+    const draft = {
+      draftId,
+      billName,
+      people,
+      items: items.map((item) => ({
+        name: item.name,
+        cost: item.cost,
+        ownerIndices: item.owners.map((owner) => people.indexOf(owner)),
+      })),
+      tax,
+      tip,
+      savedAt: new Date().toISOString(),
+    };
+    const folder = new Directory(Paths.document, "NoOwe");
+    if (!folder.exists) folder.create();
+    const draftsFile = new File(folder, "draft_bills.json");
+    let existing: typeof draft[] = [];
+    if (draftsFile.exists) {
+      const text = await draftsFile.text();
+      existing = JSON.parse(text);
+    }
+    const idx = existing.findIndex((d: any) => d.draftId === draftId);
+    if (idx !== -1) {
+      existing[idx] = draft;
+    } else {
+      existing.push(draft);
+    }
+    draftsFile.write(JSON.stringify(existing));
+    return draftId;
+  };
+
+  const deleteDraft = async (draftId: string) => {
+    try {
+      const folder = new Directory(Paths.document, "NoOwe");
+      const draftsFile = new File(folder, "draft_bills.json");
+      if (!draftsFile.exists) return;
+      const text = await draftsFile.text();
+      const existing = JSON.parse(text);
+      const updated = existing.filter((d: any) => d.draftId !== draftId);
+      draftsFile.write(JSON.stringify(updated));
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const handleBackPress = () => {
+    if (currentDraftId) {
+      saveDraft(currentDraftId).then(() => router.back());
+    } else {
+      const hasContent =
+        billName.trim().length > 0 || items.length > 0 || people.length > 1;
+      if (hasContent) {
+        setDiscardDialogVisible(true);
+      } else {
+        router.back();
+      }
+    }
+  };
+
   const buildConfirmedPeople = () => {
     const result = new Map<Person, number>();
 
@@ -600,6 +698,7 @@ export default function Manual() {
       }
       existing.push(bill);
       billsFile.write(JSON.stringify(existing));
+      if (currentDraftId) await deleteDraft(currentDraftId);
       Alert.alert("Bill JSON Created");
       router.push("/dashboard");
     } catch (e: any) {
@@ -691,7 +790,7 @@ export default function Manual() {
               icon="arrow-left"
               size={22}
               iconColor={theme.colors.onSurfaceVariant}
-              onPress={() => router.back()}
+              onPress={handleBackPress}
             />
             <Text
               variant="titleLarge"
@@ -1120,6 +1219,17 @@ export default function Manual() {
               Submit Bill
             </Button>
           </Pressable>
+          {currentDraftId && (
+            <Button
+              mode="outlined"
+              textColor={theme.colors.error}
+              onPress={() => setDeleteDraftDialogVisible(true)}
+              style={{ marginTop: 8 }}
+              contentStyle={{ paddingVertical: 4 }}
+            >
+              Delete Draft
+            </Button>
+          )}
         </View>
 
         {/* ── ITEM MODAL ── */}
@@ -1724,6 +1834,144 @@ export default function Manual() {
             )}
           </Pressable>
         </BottomSheet>
+
+        {/* ── DISCARD DIALOG ── */}
+        <Modal
+          visible={discardDialogVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setDiscardDialogVisible(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: theme.colors.backdrop,
+              paddingHorizontal: 32,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: theme.colors.surface,
+                borderRadius: 24,
+                padding: 28,
+                width: "100%",
+              }}
+            >
+              <Text
+                variant="titleLarge"
+                style={{
+                  color: theme.colors.onSurface,
+                  fontWeight: "700",
+                  marginBottom: 10,
+                }}
+              >
+                Keep this bill in progress?
+              </Text>
+              <Text
+                variant="bodyMedium"
+                style={{
+                  color: theme.colors.onSurfaceVariant,
+                  marginBottom: 28,
+                }}
+              >
+                Save your progress and continue later from the dashboard, or
+                discard this bill entirely.
+              </Text>
+              <Button
+                mode="contained"
+                onPress={async () => {
+                  setDiscardDialogVisible(false);
+                  await saveDraft(null);
+                  router.back();
+                }}
+                contentStyle={{ paddingVertical: 6 }}
+                style={{ marginBottom: 10 }}
+              >
+                Save as Draft
+              </Button>
+              <Button
+                mode="outlined"
+                textColor={theme.colors.error}
+                onPress={() => {
+                  setDiscardDialogVisible(false);
+                  router.back();
+                }}
+                contentStyle={{ paddingVertical: 6 }}
+              >
+                Discard
+              </Button>
+            </View>
+          </View>
+        </Modal>
+
+        {/* ── DELETE DRAFT CONFIRMATION ── */}
+        <Modal
+          visible={deleteDraftDialogVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setDeleteDraftDialogVisible(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: theme.colors.backdrop,
+              paddingHorizontal: 32,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: theme.colors.surface,
+                borderRadius: 24,
+                padding: 28,
+                width: "100%",
+              }}
+            >
+              <Text
+                variant="titleLarge"
+                style={{
+                  color: theme.colors.onSurface,
+                  fontWeight: "700",
+                  marginBottom: 10,
+                }}
+              >
+                Delete this draft?
+              </Text>
+              <Text
+                variant="bodyMedium"
+                style={{
+                  color: theme.colors.onSurfaceVariant,
+                  marginBottom: 28,
+                }}
+              >
+                This draft will be permanently removed and cannot be recovered.
+              </Text>
+              <Button
+                mode="contained"
+                buttonColor={theme.colors.error}
+                onPress={async () => {
+                  setDeleteDraftDialogVisible(false);
+                  await deleteDraft(currentDraftId!);
+                  router.back();
+                }}
+                contentStyle={{ paddingVertical: 6 }}
+                style={{ marginBottom: 10 }}
+              >
+                Delete
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={() => setDeleteDraftDialogVisible(false)}
+                contentStyle={{ paddingVertical: 6 }}
+              >
+                Cancel
+              </Button>
+            </View>
+          </View>
+        </Modal>
 
         {/*Showing the bill cofnriamtion modal*/}
         <BillConfirmationModal
