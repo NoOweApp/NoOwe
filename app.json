@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "appleTeamId": "3KRZK97YZ6"
+      "appleTeamId": "3KRZK97YZ6",
       "bundleIdentifier": "com.ananyashri.NoOwe",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -54,9 +54,7 @@
       [
         "rn-mlkit-ocr",
         {
-          "ocrModels": [
-            "latin"
-          ],
+          "ocrModels": ["latin"],
           "ocrUseBundled": true
         }
       ],
