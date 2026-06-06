@@ -1,5 +1,6 @@
 import { BillConfirmationModal } from "@/src/components/BillConfirmationModal";
 import { BottomSheet } from "@/src/components/BottomSheet";
+import { useAppTheme } from "@/src/context/ThemeContext";
 import * as helpers from "@/validation/helpers";
 import * as Contacts from "expo-contacts";
 import { Directory, File, Paths } from "expo-file-system/next";
@@ -16,6 +17,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Switch,
   View,
 } from "react-native";
 import {
@@ -113,6 +115,7 @@ function PersonAvatar({
 export default function Manual() {
   const router = useRouter();
   const theme = useTheme();
+  const { mode } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { temp_bill, draft_id } = useLocalSearchParams<{
     temp_bill?: string;
@@ -128,6 +131,10 @@ export default function Manual() {
   const [items, setItems] = useState<Item[]>([]);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [splitEvenlyEnabled, setSplitEvenlyEnabled] = useState(false);
+  const [preEvenSplitItems, setPreEvenSplitItems] = useState<Item[] | null>(
+    null,
+  );
 
   //Bill confirmation modal states
   const [confirmationModalVisible, setConfirmationModalVisible] =
@@ -506,14 +513,16 @@ export default function Manual() {
     setItemModalVisible(true);
   };
 
-  const splitEvenly = () => {
-    if (people.length === 0 || items.length === 0) return;
-    setItems((prev) =>
-      prev.map((item) => ({
-        ...item,
-        owners: people,
-      })),
-    );
+  const toggleSplitEvenly = (value: boolean) => {
+    if (value) {
+      setPreEvenSplitItems(items);
+      setItems((prev) => prev.map((item) => ({ ...item, owners: people })));
+      setSplitEvenlyEnabled(true);
+    } else {
+      if (preEvenSplitItems !== null) setItems(preEvenSplitItems);
+      setPreEvenSplitItems(null);
+      setSplitEvenlyEnabled(false);
+    }
   };
 
   // Helper to distribute discount proportionally across people
@@ -1197,14 +1206,50 @@ export default function Manual() {
           </View>
 
           {items.length > 0 && people.length > 0 && (
-            <Button
-              mode="outlined"
-              onPress={splitEvenly}
-              style={{ marginBottom: 20 }}
-              contentStyle={{ paddingVertical: 4 }}
+            <Pressable
+              onPress={() => toggleSplitEvenly(!splitEvenlyEnabled)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                marginBottom: 20,
+                backgroundColor: theme.colors.surface,
+                borderRadius: 14,
+              }}
             >
-              Split Evenly
-            </Button>
+              <View>
+                <Text
+                  variant="bodyMedium"
+                  style={{
+                    color: theme.colors.onSurface,
+                    fontWeight: "600",
+                  }}
+                >
+                  Split Evenly
+                </Text>
+                <Text
+                  variant="bodySmall"
+                  style={{ color: theme.colors.onSurfaceVariant }}
+                >
+                  Assign all items to everyone
+                </Text>
+              </View>
+              <Switch
+                value={splitEvenlyEnabled}
+                onValueChange={toggleSplitEvenly}
+                trackColor={{
+                  false: theme.colors.outlineVariant,
+                  true:
+                    mode === "light"
+                      ? theme.colors.primaryContainer
+                      : theme.colors.onPrimary,
+                }}
+                thumbColor={theme.colors.primary}
+                ios_backgroundColor={theme.colors.outlineVariant}
+              />
+            </Pressable>
           )}
 
           <View
