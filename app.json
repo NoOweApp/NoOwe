@@ -10,8 +10,11 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.akumaran.NoOwe",
       "appleTeamId": "3KRZK97YZ6"
+      "bundleIdentifier": "com.ananyashri.NoOwe",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -33,6 +36,7 @@
       [
         "expo-splash-screen",
         {
+          "image": "./src/assets/logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
@@ -68,6 +72,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b4af44b6-72d9-4fd9-9f21-57498261ea1d"
+      }
     }
   }
 }
