@@ -2,11 +2,11 @@
 
 A free, open-source bill splitting app with bill scanning via OCR.
 
-**Landing Page:** https://nooweapp.pages.dev/
-
 ## Our Vision
 
 NoOwe is a cutting edge OCR backed bill-splitting application, built to make cost-sharing simple. It is completely free and open source, hosted via GitHub to allow users to report issues and add and suggest new features. For maximal security, the application features a serverless backend, allowing for all personal information to remain local.
+
+**Landing Page:** https://nooweapp.pages.dev/
 
 ## Features
 
