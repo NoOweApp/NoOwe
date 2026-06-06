@@ -114,8 +114,12 @@ export default function Manual() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { temp_bill, draft_id } = useLocalSearchParams<{ temp_bill?: string; draft_id?: string }>();
-  const currentDraftId = typeof draft_id === "string" && draft_id.trim() !== "" ? draft_id : null;
+  const { temp_bill, draft_id } = useLocalSearchParams<{
+    temp_bill?: string;
+    draft_id?: string;
+  }>();
+  const currentDraftId =
+    typeof draft_id === "string" && draft_id.trim() !== "" ? draft_id : null;
 
   type PeopleModalView = "main" | "manual" | "auto";
   const [peopleModalVisible, setPeopleModalVisible] = useState(false);
@@ -130,7 +134,8 @@ export default function Manual() {
     useState(false);
   const [confirmedPeople, setConfirmedPeople] = useState<Person[]>([]);
   const [discardDialogVisible, setDiscardDialogVisible] = useState(false);
-  const [deleteDraftDialogVisible, setDeleteDraftDialogVisible] = useState(false);
+  const [deleteDraftDialogVisible, setDeleteDraftDialogVisible] =
+    useState(false);
 
   useEffect(() => {
     if (currentDraftId) return;
@@ -202,6 +207,7 @@ export default function Manual() {
         );
         setTax(draft.tax ?? "");
         setTip(draft.tip ?? "");
+        setDiscount(draft.discount ?? "");
       } catch (e) {
         // ignore
       }
@@ -280,7 +286,8 @@ export default function Manual() {
   const [itemError, setItemError] = useState("");
   const [tax, setTax] = useState("");
   const [tip, setTip] = useState("");
-  const [taxTipError, setTaxTipError] = useState("");
+  const [discount, setDiscount] = useState("");
+  const [taxTipDiscError, setTaxTipDiscError] = useState("");
   const mainScrollRef = useRef<ScrollView>(null);
   const [kbHeight, setKbHeight] = useState(0);
   const [billName, setBillName] = useState("");
@@ -499,6 +506,43 @@ export default function Manual() {
     setItemModalVisible(true);
   };
 
+  const splitEvenly = () => {
+    if (people.length === 0 || items.length === 0) return;
+    setItems((prev) =>
+      prev.map((item) => ({
+        ...item,
+        owners: people,
+      })),
+    );
+  };
+
+  // Helper to distribute discount proportionally across people
+  const applyDiscountProportionally = <T,>(
+    result: Map<Person, T>,
+    discountCents: number,
+    getAmount: (value: T) => number,
+    updateAmount: (value: T, deductCents: number) => T,
+    sortFn: (a: Person, b: Person) => number,
+  ) => {
+    if (discountCents === 0) return;
+
+    let discountRemainder = discountCents;
+    const peopleWithEntries = people.filter((p) => result.has(p)).sort(sortFn);
+
+    for (let i = 0; i < peopleWithEntries.length; i++) {
+      const person = peopleWithEntries[i];
+      const value = result.get(person)!;
+      const amount = getAmount(value);
+      const proportion = amount / (itemsTotal + taxNum + tipNum);
+      const shareCents =
+        i < peopleWithEntries.length - 1
+          ? Math.round(discountCents * proportion)
+          : discountRemainder;
+      discountRemainder -= shareCents;
+      result.set(person, updateAmount(value, shareCents));
+    }
+  };
+
   const saveDraft = async (existingDraftId?: string | null) => {
     const draftId = existingDraftId ?? Date.now().toString();
     const draft = {
@@ -512,12 +556,13 @@ export default function Manual() {
       })),
       tax,
       tip,
+      discount,
       savedAt: new Date().toISOString(),
     };
     const folder = new Directory(Paths.document, "NoOwe");
     if (!folder.exists) folder.create();
     const draftsFile = new File(folder, "draft_bills.json");
-    let existing: typeof draft[] = [];
+    let existing: (typeof draft)[] = [];
     if (draftsFile.exists) {
       const text = await draftsFile.text();
       existing = JSON.parse(text);
@@ -605,6 +650,18 @@ export default function Manual() {
       }
     }
 
+    // Distribute discount proportionally (reduces what people owe)
+    if (discountNum > 0 && itemsTotal > 0) {
+      const discountCents = Math.round(discountNum * 100);
+      applyDiscountProportionally(
+        result,
+        discountCents,
+        (val) => val, // amount is already a number
+        (val, deductCents) => Math.round((val - deductCents / 100) * 100) / 100,
+        (a, b) => (result.get(b) ?? 0) - (result.get(a) ?? 0), // descending by amount
+      );
+    }
+
     return people.map((person) => ({
       ...person,
       oweAmount: result.get(person) ?? 0,
@@ -673,13 +730,30 @@ export default function Manual() {
       }
     }
 
+    // Distribute discount proportionally (reduces what people owe)
+    if (discountNum > 0 && itemsTotal > 0) {
+      const discountCents = Math.round(discountNum * 100);
+      applyDiscountProportionally(
+        result,
+        discountCents,
+        (entry) => entry.cost, // get cost from entry
+        (entry, deductCents) => ({
+          ...entry,
+          cost: Math.round((entry.cost - deductCents / 100) * 100) / 100,
+        }),
+        (a, b) => result.get(b)!.cost - result.get(a)!.cost, // descending by cost
+      );
+    }
+
     const bill = {
       id: Date.now().toString(),
       dateUploaded: new Date().toISOString().split("T")[0],
       description: billName.trim(),
-      totalAmountPaid: Math.round((itemsTotal + taxNum + tipNum) * 100) / 100,
+      totalAmountPaid:
+        Math.round((itemsTotal + taxNum + tipNum - discountNum) * 100) / 100,
       tax: taxNum,
       tip: tipNum,
+      discount: discountNum,
       people: people.map((person) => ({
         ...person,
         oweAmount: result.get(person)?.cost ?? 0,
@@ -699,7 +773,7 @@ export default function Manual() {
       existing.push(bill);
       billsFile.write(JSON.stringify(existing));
       if (currentDraftId) await deleteDraft(currentDraftId);
-      Alert.alert("Bill JSON Created");
+      Alert.alert("Bill succesfully created!");
       router.push("/dashboard");
     } catch (e: any) {
       Alert.alert("Error", e.message);
@@ -719,11 +793,16 @@ export default function Manual() {
   const itemsTotal = items.reduce((sum, item) => sum + item.cost, 0);
   const taxNum = parseFloat(tax);
   const tipNum = parseFloat(tip);
+  const discountNum = parseFloat(discount);
   const runningTotal =
-    itemsTotal + (isNaN(taxNum) ? 0 : taxNum) + (isNaN(tipNum) ? 0 : tipNum);
+    itemsTotal +
+    (isNaN(taxNum) ? 0 : taxNum) +
+    (isNaN(tipNum) ? 0 : tipNum) -
+    (isNaN(discountNum) ? 0 : discountNum);
   const trimmedBillName = billName.trim();
 
-  const billNameValid = (trimmedBillName.length >= 2 && trimmedBillName.length <= 50);
+  const billNameValid =
+    trimmedBillName.length >= 2 && trimmedBillName.length <= 50;
 
   const taxTipValid =
     tax.trim() !== "" &&
@@ -757,7 +836,7 @@ export default function Manual() {
     if (items.length === 0) return "Add at least one item.";
     if (items.some((item) => item.owners.length === 0))
       return "All items must have people assigned.";
-    if (!billNameValid) return "Bill name must be between 2 and 50 characters"
+    if (!billNameValid) return "Bill name must be between 2 and 50 characters";
     if (
       people.some(
         (person) => !items.some((item) => item.owners.includes(person)),
@@ -1117,6 +1196,17 @@ export default function Manual() {
             </Pressable>
           </View>
 
+          {items.length > 0 && people.length > 0 && (
+            <Button
+              mode="outlined"
+              onPress={splitEvenly}
+              style={{ marginBottom: 20 }}
+              contentStyle={{ paddingVertical: 4 }}
+            >
+              Split Evenly
+            </Button>
+          )}
+
           <View
             style={{
               flexDirection: "row",
@@ -1133,11 +1223,11 @@ export default function Manual() {
                 const taxNum = parseFloat(val);
                 const tipNum = parseFloat(tip);
                 if (!isNaN(taxNum) && taxNum > 10000) {
-                  setTaxTipError("Tax cannot exceed $10,000.");
+                  setTaxTipDiscError("Tax cannot exceed $10,000.");
                 } else if (!isNaN(tipNum) && tipNum > 10000) {
-                  setTaxTipError("Tip cannot exceed $10,000.");
+                  setTaxTipDiscError("Tip cannot exceed $10,000.");
                 } else {
-                  setTaxTipError("");
+                  setTaxTipDiscError("");
                 }
               }}
               onFocus={() =>
@@ -1157,11 +1247,34 @@ export default function Manual() {
                 const tipNum = parseFloat(val);
                 const taxNum = parseFloat(tax);
                 if (!isNaN(tipNum) && tipNum > 10000) {
-                  setTaxTipError("Tip cannot exceed $10,000.");
+                  setTaxTipDiscError("Tip cannot exceed $10,000.");
                 } else if (!isNaN(taxNum) && taxNum > 10000) {
-                  setTaxTipError("Tax cannot exceed $10,000.");
+                  setTaxTipDiscError("Tax cannot exceed $10,000.");
                 } else {
-                  setTaxTipError("");
+                  setTaxTipDiscError("");
+                }
+              }}
+              onFocus={() =>
+                mainScrollRef.current?.scrollToEnd({ animated: false })
+              }
+              keyboardType="decimal-pad"
+              mode="outlined"
+              dense
+              style={{ flex: 1, backgroundColor: theme.colors.surfaceVariant }}
+              outlineStyle={{ borderRadius: 50 }}
+            />
+            <TextInput
+              label="Disc ($)"
+              value={discount}
+              onChangeText={(val) => {
+                setDiscount(val);
+                const discountNum = parseFloat(val);
+                if (discountNum > runningTotal) {
+                  setTaxTipDiscError(
+                    "Discount cannot be greater than the running total of the bill!",
+                  );
+                } else {
+                  setTaxTipDiscError("");
                 }
               }}
               onFocus={() =>
@@ -1174,9 +1287,9 @@ export default function Manual() {
               outlineStyle={{ borderRadius: 50 }}
             />
           </View>
-          {taxTipError !== "" && (
+          {taxTipDiscError !== "" && (
             <HelperText type="error" visible style={{ paddingHorizontal: 4 }}>
-              {taxTipError}
+              {taxTipDiscError}
             </HelperText>
           )}
         </ScrollView>
@@ -1973,7 +2086,7 @@ export default function Manual() {
           </View>
         </Modal>
 
-        {/*Showing the bill cofnriamtion modal*/}
+        {/*Showing the bill confirmation modal*/}
         <BillConfirmationModal
           visible={confirmationModalVisible}
           onClose={() => setConfirmationModalVisible(false)}
@@ -1985,6 +2098,7 @@ export default function Manual() {
           items={items}
           tax={taxNum}
           tip={tipNum}
+          discount={discountNum}
           total={runningTotal}
         />
       </View>
