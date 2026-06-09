@@ -67,11 +67,19 @@ export function BottomSheet({ visible, onClose, children }: Props) {
         pointerEvents="none"
       />
 
-      {/* Tap above the sheet to dismiss */}
-      <Pressable style={{ flex: 1 }} onPress={onClose} />
+      {/* Tap anywhere outside the sheet to dismiss */}
+      <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
 
-      {/* Sheet slides up from below */}
-      <Animated.View style={{ transform: [{ translateY: slideY }] }}>
+      {/* Sheet anchored to the bottom of the screen */}
+      <Animated.View
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          transform: [{ translateY: slideY }],
+        }}
+      >
         {children}
       </Animated.View>
     </Modal>
