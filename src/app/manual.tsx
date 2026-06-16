@@ -750,7 +750,13 @@ export default function Manual() {
       dateUploaded: new Date().toISOString().split("T")[0],
       description: billName.trim(),
       totalAmountPaid:
-        Math.round((itemsTotal + taxNum + tipNum - discountNum) * 100) / 100,
+        Math.round(
+          (itemsTotal +
+            (isNaN(taxNum) ? 0 : taxNum) +
+            (isNaN(tipNum) ? 0 : tipNum) -
+            (isNaN(discountNum) ? 0 : discountNum)) *
+            100,
+        ) / 100,
       tax: taxNum,
       tip: tipNum,
       discount: discountNum,
