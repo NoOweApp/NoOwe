@@ -525,7 +525,7 @@ export default function Dashboard() {
                             fontWeight: "800",
                           }}
                         >
-                          ${bill.totalAmountPaid.toFixed(2)}
+                          ${(bill.totalAmountPaid ?? 0).toFixed(2)}
                         </Text>
                         {billOutstanding > 0 ? (
                           <Text
@@ -783,7 +783,7 @@ export default function Dashboard() {
                       variant="headlineMedium"
                       style={{ color: theme.colors.primary, fontWeight: "800" }}
                     >
-                      ${selectedBill.totalAmountPaid.toFixed(2)}
+                      ${(selectedBill.totalAmountPaid ?? 0).toFixed(2)}
                     </Text>
                   </View>
 
