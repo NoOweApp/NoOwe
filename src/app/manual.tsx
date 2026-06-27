@@ -27,7 +27,6 @@ import {
 } from "react-native";
 import {
   Button,
-  Divider,
   HelperText,
   Icon,
   IconButton,
@@ -995,6 +994,14 @@ export default function Manual() {
     </Text>
   );
 
+  // Shared grouped-card surface, matching the Settings screen.
+  const cardStyle = {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.outlineVariant,
+  } as const;
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: theme.colors.background }}
@@ -1044,7 +1051,10 @@ export default function Manual() {
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 ellipsizeMode="tail"
-                style={{ color: "white", fontWeight: "800" }}
+                style={{
+                  color: theme.colors.onPrimaryContainer,
+                  fontWeight: "800",
+                }}
               >
                 ${runningTotal.toFixed(2)}
               </Text>
@@ -1072,25 +1082,9 @@ export default function Manual() {
             outlineStyle={{ borderRadius: 16 }}
           />
           {/* People section */}
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 14,
-            }}
-          >
-            <Text
-              variant="labelSmall"
-              style={{
-                color: theme.colors.onSurfaceVariant,
-                textTransform: "uppercase",
-                letterSpacing: 1.2,
-              }}
-            >
-              People {people.length > 0 ? `(${people.length})` : ""}
-            </Text>
-          </View>
+          <SectionLabel>
+            People {people.length > 0 ? `(${people.length})` : ""}
+          </SectionLabel>
 
           <ScrollView
             horizontal
@@ -1161,8 +1155,11 @@ export default function Manual() {
             ))}
 
             {/* Add person button */}
-            <Pressable
-              onPress={() => setPeopleModalVisible(true)}
+            <PressableScale
+              onPress={() => {
+                Haptics.selectionAsync();
+                setPeopleModalVisible(true);
+              }}
               style={{ alignItems: "center" }}
             >
               <View
@@ -1177,16 +1174,7 @@ export default function Manual() {
                   alignItems: "center",
                 }}
               >
-                <Text
-                  style={{
-                    color: theme.colors.primary,
-                    fontSize: 24,
-                    fontWeight: "300",
-                    lineHeight: 28,
-                  }}
-                >
-                  +
-                </Text>
+                <Icon source="plus" color={theme.colors.primary} size={22} />
               </View>
               <Text
                 variant="labelSmall"
@@ -1194,37 +1182,31 @@ export default function Manual() {
               >
                 Add
               </Text>
-            </Pressable>
+            </PressableScale>
           </ScrollView>
 
-          <Divider style={{ marginBottom: 24 }} />
-
           {/* Items section */}
-          <Text
-            variant="labelSmall"
-            style={{
-              color: theme.colors.onSurfaceVariant,
-              textTransform: "uppercase",
-              letterSpacing: 1.2,
-              marginBottom: 14,
-            }}
-          >
+          <SectionLabel>
             Items {items.length > 0 ? `(${items.length})` : ""}
-          </Text>
+          </SectionLabel>
 
           <View
-            style={{
-              backgroundColor: theme.colors.surface,
-              borderRadius: 14,
-              overflow: "hidden",
-              marginBottom: 8,
-            }}
+            style={[cardStyle, { overflow: "hidden", marginBottom: 8 }]}
           >
             {items.length === 0 && (
-              <View style={{ paddingVertical: 36, alignItems: "center" }}>
+              <View style={{ paddingVertical: 32, alignItems: "center" }}>
+                <Icon
+                  source="receipt-text-outline"
+                  color={theme.colors.onSurfaceVariant}
+                  size={30}
+                />
                 <Text
                   variant="bodyMedium"
-                  style={{ color: theme.colors.onSurfaceVariant }}
+                  style={{
+                    color: theme.colors.onSurface,
+                    fontWeight: "600",
+                    marginTop: 10,
+                  }}
                 >
                   No items yet
                 </Text>
@@ -1232,7 +1214,6 @@ export default function Manual() {
                   variant="bodySmall"
                   style={{
                     color: theme.colors.onSurfaceVariant,
-                    opacity: 0.5,
                     marginTop: 4,
                   }}
                 >
@@ -1242,7 +1223,13 @@ export default function Manual() {
             )}
 
             {items.map((item, index) => (
-              <Pressable key={index} onPress={() => editItem(index)}>
+              <Pressable
+                key={index}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  editItem(index);
+                }}
+              >
                 <View
                   style={{
                     flexDirection: "row",
@@ -1307,7 +1294,10 @@ export default function Manual() {
 
             {/* Inline Add Item row */}
             <Pressable
-              onPress={openAddItem}
+              onPress={() => {
+                Haptics.selectionAsync();
+                openAddItem();
+              }}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -1326,16 +1316,7 @@ export default function Manual() {
                   marginRight: 12,
                 }}
               >
-                <Text
-                  style={{
-                    color: theme.colors.primary,
-                    fontSize: 16,
-                    fontWeight: "700",
-                    lineHeight: 20,
-                  }}
-                >
-                  +
-                </Text>
+                <Icon source="plus" color={theme.colors.primary} size={16} />
               </View>
               <Text
                 variant="bodyMedium"
@@ -1347,18 +1328,22 @@ export default function Manual() {
           </View>
 
           {items.length > 0 && people.length > 0 && (
-            <Pressable
-              onPress={() => toggleSplitEvenly(!splitEvenlyEnabled)}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                paddingVertical: 12,
-                paddingHorizontal: 16,
-                marginBottom: 20,
-                backgroundColor: theme.colors.surface,
-                borderRadius: 14,
+            <PressableScale
+              onPress={() => {
+                Haptics.selectionAsync();
+                toggleSplitEvenly(!splitEvenlyEnabled);
               }}
+              style={[
+                cardStyle,
+                {
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingVertical: 14,
+                  paddingHorizontal: 16,
+                  marginBottom: 20,
+                },
+              ]}
             >
               <View>
                 <Text
@@ -1387,15 +1372,16 @@ export default function Manual() {
                 thumbColor={theme.colors.primary}
                 ios_backgroundColor={theme.colors.outlineVariant}
               />
-            </Pressable>
+            </PressableScale>
           )}
 
+          <View style={{ marginTop: 4 }}>
+            <SectionLabel>Tax, Tip &amp; Discount</SectionLabel>
+          </View>
           <View
             style={{
               flexDirection: "row",
-              gap: 12,
-              marginTop: 20,
-              paddingHorizontal: 4,
+              gap: 10,
             }}
           >
             <TextInput
@@ -1420,7 +1406,7 @@ export default function Manual() {
               mode="outlined"
               dense
               style={{ flex: 1, backgroundColor: theme.colors.surfaceVariant }}
-              outlineStyle={{ borderRadius: 50 }}
+              outlineStyle={{ borderRadius: 14 }}
             />
             <TextInput
               label="Tip ($)"
@@ -1444,7 +1430,7 @@ export default function Manual() {
               mode="outlined"
               dense
               style={{ flex: 1, backgroundColor: theme.colors.surfaceVariant }}
-              outlineStyle={{ borderRadius: 50 }}
+              outlineStyle={{ borderRadius: 14 }}
             />
             <TextInput
               label="Disc ($)"
@@ -1467,7 +1453,7 @@ export default function Manual() {
               mode="outlined"
               dense
               style={{ flex: 1, backgroundColor: theme.colors.surfaceVariant }}
-              outlineStyle={{ borderRadius: 50 }}
+              outlineStyle={{ borderRadius: 14 }}
             />
           </View>
           {taxTipDiscError !== "" && (
